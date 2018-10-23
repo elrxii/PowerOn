@@ -1,0 +1,124 @@
+[ ER.LOOKUP.FM
+
+  Created by
+  Ethan Roberts
+  on 05/19/2016
+
+  This specfile will delete all card lookups (types 15, 16, or 17 only) that are not linked to a debit card.
+
+]
+
+TARGET=ACCOUNT
+
+DEFINE 
+ NOTLINKEDCOUNTER = NUMBER
+ FMCOUNT = NUMBER
+ CARDNUMARRAY = CHARACTER ARRAY(99)
+ LOOKUPARRAY = CHARACTER ARRAY(99)
+ LOOKUPLOCARRAY = NUMBER ARRAY(99)
+ CARDLOCARRAY = NUMBER ARRAY(99)
+ MAXCOUNTLOOKUP = NUMBER
+ MAXCOUNTCARD = NUMBER
+ I = NUMBER
+ J = NUMBER
+END
+
+SETUP
+ FMCOUNT = 0
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE='--/--/--'
+END
+
+
+PRINT TITLE="Lookup Delete FM"  REPORTCATEGORY="CREDEBCARD"
+HEADER=""
+
+
+  CALL CLEARARRAYS
+  MAXCOUNTLOOKUP = 0           
+  MAXCOUNTCARD = 0
+
+  I = 0
+  CALL STORELOOKUPS
+
+  J = 0
+  CALL STORECARDS
+
+                                                                                                                                                                     
+[******* Finding lookups not linked to a debit card *******]
+[******* If found, deleting the lookup ****************]
+
+  FOR I = 0 TO MAXCOUNTLOOKUP
+   DO  
+    NOTLINKEDCOUNTER = -1      [ accounting for zero slot in array ]
+    FOR J = 0 TO MAXCOUNTCARD
+     DO
+      IF LOOKUPARRAY(I) <> CARDNUMARRAY(J) THEN  
+       DO
+        NOTLINKEDCOUNTER = NOTLINKEDCOUNTER + 1  [ If no match, increment and compare nxt card ]
+       END 
+     END [ FOR J ]
+     IF NOTLINKEDCOUNTER = MAXCOUNTCARD THEN     [ If no match found, FM ]
+      DO
+       CALL DELETELOOKUP
+       FMCOUNT = FMCOUNT + 1   [card deletion counter]
+      END 
+   END [ FOR I ]
+END
+
+
+TOTAL
+ NEWLINE
+ PRINT "TOTAL: "
+ PRINT FMCOUNT
+ NEWLINE
+END
+
+
+
+PROCEDURE CLEARARRAYS
+  FOR I = 0 TO 99     
+   DO
+    CARDNUMARRAY(I) = ""      
+    LOOKUPARRAY(I) = ""
+    LOOKUPLOCARRAY(I) = 0
+    CARDLOCARRAY(I) = 0
+   END
+END
+
+
+PROCEDURE STORELOOKUPS
+ FOR EACH LOOKUP WITH (LOOKUP:TYPE = 15 OR  
+                       LOOKUP:TYPE = 16 OR 
+                       LOOKUP:TYPE = 17)
+  DO        
+   LOOKUPARRAY(I) = LOOKUP:NUMBER        [ LOC NUMBER ]
+   LOOKUPLOCARRAY(I) = LOOKUP:LOCATOR    [ LOC LOCATOR ]
+   I = I + 1  
+  END
+
+  MAXCOUNTLOOKUP = I-1   [ accounting for zero slot in array ]
+
+END
+
+
+PROCEDURE STORECARDS
+  FOR EACH CARD 
+   DO
+    CARDNUMARRAY(J) = CARD:NUMBER       
+    CARDLOCARRAY(J) = CARD:LOCATOR
+    J = J + 1
+   END
+
+   MAXCOUNTCARD = J-1   [ accounting for zero slot in array ]
+
+END
+
+
+PROCEDURE DELETELOOKUP
+  PRINT "ACCOUNT "+ACCOUNT:NUMBER+" DELETE LOOKUP LOC "  
+  PRINT LOOKUPLOCARRAY(I)  [ LOCATOR ]
+  NEWLINE
+END
