@@ -1,0 +1,213 @@
+[ ER.DEALER.TRACKING
+
+  Created by
+  Ethan Roberts
+  on 07/20/2016
+
+
+  This specfile creates the Dealer Tracking report. 
+
+]
+
+TARGET = ACCOUNT
+
+DEFINE
+ HELPFILENUM = CHARACTER
+ CODEARY = CHARACTER ARRAY(9999)  [ Dealer Code    ]
+ NAMEARY = CHARACTER ARRAY(9999)  [ Dealer Name    ]
+ COUNTARY = NUMBER ARRAY(9999)    [ Counter        ] 
+ BALARY = MONEY ARRAY(9999)       [ Dealer Balance ]
+ DQCOUNTARY = NUMBER ARRAY(9999)  [ DQ Count       ]
+ DQBALARY = MONEY ARRAY(9999)     [ DQ Balance     ]
+ COCOUNTARY = NUMBER ARRAY(9999)  [ Chgoff Counter ]
+ COBALARY = MONEY ARRAY(9999)     [ ChgOff Balance ]
+
+ FILESIZE = NUMBER
+ MAXCOUNT = NUMBER
+ TAB = CHARACTER
+ FLINE = CHARACTER
+ FERROR = CHARACTER
+ FNUMBER = NUMBER
+ I = NUMBER
+ J = NUMBER
+ COUNTER = NUMBER
+ BEGINDATE = DATE
+ ENDDATE = DATE
+END
+
+SETUP
+ HELPFILENUM = "01476" 
+ TAB = CTRLCHR(9)
+ I = 0
+ J = 0
+ FILESIZE = 0 
+ COUNTER = 0
+ BEGINDATE = DATEREAD("BEGINNING DATE FOR CHARGEOFF")
+ ENDDATE = DATEREAD("ENDING DATE FOR CHARGEOFF")
+
+ FILEOPEN("HELP",HELPFILENUM,"READ",FNUMBER,FERROR)
+ IF FERROR <> " " THEN
+  DO
+   PRINT "***************"
+   PRINT "ERROR OPENING FILE!"
+   TERMINATE 
+  END 
+
+  CALL CLEARARYS
+
+[ ******* GETTING SIZE OF FILE ******************************************* ]
+
+  I = 0
+  WHILE FERROR = ""       
+   DO
+    FILEREADLINE(FNUMBER,FLINE,FERROR)
+    CODEARY(I) = SEGMENT(FLINE,1,CHARACTERSEARCH(FLINE,TAB)-1)
+    NAMEARY(I) = SEGMENT(FLINE,CHARACTERSEARCH(FLINE,TAB)+1,LENGTH(FLINE))
+    I = I + 1
+   END[WHILE]
+
+   MAXCOUNT = I - 1   [ SIZE OF FILE ]
+   I = 0 [ RESET ]
+ 
+  FILECLOSE(FNUMBER,FERROR)   [ CLOSING FILE ]
+
+[**************************************************************************]
+
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE = '--/--/--'
+END
+
+
+PRINT TITLE = "Dealer Loan Tracking Report"  REPORTCATEGORY="INDIRECTLE"
+  
+  FOR EACH LOAN WITH LOAN:CLOSEDATE = '--/--/--'
+   DO
+    FOR J = 0 TO MAXCOUNT
+     DO
+      IF LOAN:DEALERCODE = CODEARY(J) THEN
+       DO
+        COUNTARY(J) = COUNTARY(J) + 1
+        BALARY(J) = BALARY(J) + LOAN:BALANCE        
+       END[ IF LOAN]
+     END[FOR J]
+   END[FOR EACH LOAN]
+
+   J = 0 [ RESET ]
+
+  FOR EACH LOAN WITH (LOAN:CLOSEDATE = '--/--/--' AND
+                      LOAN:DUEDATE < (SYSTEMDATE-60) AND
+                      LOAN:CHARGEOFFDATE = '--/--/--' )
+   DO
+    FOR J = 0 TO MAXCOUNT
+     DO
+      IF LOAN:DEALERCODE = CODEARY(J) THEN
+       DO
+        DQCOUNTARY(J) = DQCOUNTARY(J) + 1
+        DQBALARY(J) = DQBALARY(J) + LOAN:BALANCE
+       END[IF]
+     END[FOR J]
+   END[FOR EACH LOAN]
+
+   J = 0 [ RESET ]
+
+  FOR EACH LOAN WITH (LOAN:CLOSEDATE = '--/--/--' AND
+                      LOAN:CHARGEOFFDATE <> '--/--/--' AND
+                     (LOAN:CHARGEOFFDATE >= BEGINDATE AND
+                      LOAN:CHARGEOFFDATE <= ENDDATE))
+   DO
+    FOR J = 0 TO MAXCOUNT
+     DO
+      IF LOAN:DEALERCODE = CODEARY(J) THEN
+        DO
+         COCOUNTARY(J) = COCOUNTARY(J) + 1
+         COBALARY(J) = COBALARY(J) + LOAN:CHARGEOFFAMOUNT
+        END[IF]
+      END[FOR EACH LOAN]
+    END[FOR J]
+
+    J = 0 [ RESET ]
+
+END
+
+
+TOTAL
+ NEWLINE
+ PRINT "Dealer Code Totals"
+ PRINT "~"
+ PRINT "Delinquency > 60 Days"
+ PRINT "~"
+ PRINT "Charge-Offs"
+ NEWLINE
+ NEWLINE
+ PRINT "Dealer Code"
+ PRINT "~"
+ PRINT "Dealer Name"
+ PRINT "~"
+ PRINT "Count"
+ PRINT "~"
+ PRINT "Total Balance"
+ PRINT "~"
+ PRINT "Number of DQ Loans"
+ PRINT "~"
+ PRINT "DQ Amount"
+ PRINT "~"
+ PRINT "Percent"
+ PRINT "~"
+ PRINT "Number of C/O Loans"
+ PRINT "~"
+ PRINT "C/O Amount"
+ PRINT "~"
+ PRINT "Percent"
+ NEWLINE
+ PRINT REPEATCHR("-",107)
+ NEWLINE
+ 
+ FOR J = 0 TO 9999
+  DO
+   IF CODEARY(J) <> "" THEN [ IF DEALER-CODE EXISTS ]
+    DO
+     PRINT CODEARY(J)
+     PRINT "~"
+     PRINT NAMEARY(J)
+     PRINT "~"
+     PRINT COUNTARY(J)
+     PRINT "~"
+     PRINT BALARY(J)
+     PRINT "~"
+     PRINT DQCOUNTARY(J)
+     PRINT "~"
+     PRINT DQBALARY(J)
+     PRINT "~"
+     PRINT DQBALARY(J) / BALARY(J)
+     PRINT "~"
+     PRINT COCOUNTARY(J)
+     PRINT "~"
+     PRINT COBALARY(J)
+     PRINT "~"
+     PRINT COBALARY(J) / BALARY(J)
+     NEWLINE 
+    END
+  END 
+
+  J = 0
+
+END
+
+
+PROCEDURE CLEARARYS
+  FOR I = 0 TO 9999
+   DO
+    CODEARY(I) = "" 
+    NAMEARY(I)  = ""
+    COUNTARY(I)  = 0
+    BALARY(I)  = $0.00
+    DQCOUNTARY(I)  = 0
+    DQBALARY(I)  = $0.00
+    COCOUNTARY(I)  = 0
+    COBALARY(I)  = $0.00
+   END
+END
+
+

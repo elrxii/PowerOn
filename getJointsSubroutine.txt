@@ -1,0 +1,149 @@
+SUBROUTINE
+
+TARGET = ACCOUNT
+
+
+DEFINE
+ TRUE = 1
+ FALSE = 0
+
+ NAMEARY = CHARACTER ARRAY (19)
+ IDARY = CHARACTER ARRAY (19)
+ ARYSIZE = NUMBER
+ I = NUMBER
+
+ FOUNDINARY = NUMBER [ bool ]
+ INSERTED = NUMBER   [ bool ]
+ FOUND = NUMBER  [ bool ]
+END
+
+
+SETUP
+ ARYSIZE = 19
+END
+
+
+SELECT 
+ ACCOUNT:CLOSEDATE = '--/--/--'
+END
+
+
+PRINT TITLE = "Get Joints Report"
+
+  CALL CLEARNAMEARY
+  FOUND = FALSE [ RESET ]
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE NAME WITH SHARE NAME:TYPE = 1   [ Joint name ]
+     DO
+      CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+      IF FOUNDINARY = FALSE THEN
+       DO
+        CALL INSERTNAME
+       END
+     END
+   END
+
+   CALL CLEARIDARY  
+   CALL ASSOCIATEIDSWITHNAMES
+  
+   @ENVPARAMCHAR1=NAMEARY(0)
+   @ENVPARAMCHAR2=IDARY(0)
+   @ENVPARAMCHAR3=NAMEARY(1)                  
+   @ENVPARAMCHAR4=IDARY(1)
+   
+   
+END
+
+
+PROCEDURE CLEARNAMEARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   NAMEARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+PROCEDURE CLEARIDARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IDARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+
+
+PROCEDURE SCANARRAY
+ FOUNDINARY = FALSE
+ I = 0 
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IF NAMEARY(I) = SHARE NAME:LONGNAME THEN
+     FOUNDINARY = TRUE
+  END
+
+  I = 0
+ 
+END
+
+
+
+
+
+PROCEDURE INSERTNAME
+
+ INSERTED = FALSE
+ I = 0
+
+ WHILE (I <= ARYSIZE AND INSERTED = FALSE)
+  DO
+   IF NAMEARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
+    DO
+     NAMEARY(I) = SHARE NAME:LONGNAME
+     INSERTED = TRUE
+    END
+  I = I + 1
+  END
+
+  I = 0
+ 
+END
+
+
+
+PROCEDURE ASSOCIATEIDSWITHNAMES
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE NAME
+     DO
+      FOR I = 0 TO 1   [ only want to look at the first two joints on account ]
+       DO
+        IF SHARE NAME:LONGNAME = NAMEARY(I) THEN
+         DO
+          IF IDARY(I) = "" THEN   [ this "if" clause is only added for comma delimiting ]
+           IDARY(I) = SHARE:ID
+          ELSE
+           IDARY(I) = IDARY(I)+", "+SHARE:ID
+         END
+       END 
+     END
+   END
+  
+END
+
+

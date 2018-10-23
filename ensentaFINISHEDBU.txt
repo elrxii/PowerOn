@@ -1,0 +1,354 @@
+[  ER.ENSENTA.RDC
+
+   Created by
+   Ethan Roberts
+   on 11/07/2017
+
+   Ensenta specfile.
+
+   This specfile will search for particular share criteria and then print out what tier it meets.
+
+   *Note:  Within this specfile, an array of share id's is used of the particular account in the scope.  
+
+           How it works: When a share in the scoped account meets criteria, the share and it's tier is printed, and 
+           it's share-ID is then placed inside the "share ID array". Once the share-ID has entered the share ID array, it
+           will not be printed again regardless of what criteria it meets.  This is to cut duplicates from
+           the program. 
+
+]
+
+
+TARGET = ACCOUNT
+
+DEFINE
+ PREFUSERNAME = CHARACTER
+ BAL = MONEY
+ TRUE = 1
+ FALSE = 0
+
+ IDARY = CHARACTER ARRAY (19)
+ ARYSIZE = NUMBER
+ I = NUMBER
+
+ FOUNDINARY = NUMBER [ bool ]
+ INSERTED = NUMBER   [ bool ]
+ FOUND = NUMBER  [ bool ]
+
+END
+
+SETUP
+ ARYSIZE = 19
+
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE = '--/--/--' AND
+ SHARE:CHARGEOFFDATE = '--/--/--' AND 
+ NOT ANY SHARE WITH (SHARE:TYPE=51)     [ GMAB ]
+END
+
+
+PRINT TITLE = "Ensenta RDC Report"
+ [HEADER = ""]
+
+  CALL CLEARARY
+  BAL = $0.00   [ RESET ]
+  FOUND = FALSE [ RESET ]
+
+  PREFUSERNAME = ""   [ RESET ]
+  FOR EACH PREFERENCE 
+   DO
+    PREFUSERNAME = PREFERENCE:HBUSERNAME
+   END
+
+
+
+
+ [ ****************************   BEGIN TIER 1   ****************************  ]
+
+  FOR EACH SHARE WITH SHARE:CHARGEOFFDATE = '--/--/--' AND
+                      SHARE:CLOSEDATE = '--/--/--' AND
+                      SHARE:OPENDATE <= SYSTEMDATE-30 AND             [ share has been open for at least 30 days ]
+                      SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,-6,0) AND   [ share has been open less than 6 MONTHS ]
+                      SHARE:TYPE <> 51 AND
+                      (SHARE:SHARECODE = 00 OR  [ SHARE ]
+                      SHARE:SHARECODE = 01)     [ DRAFT ]
+
+   DO
+    IF PREFUSERNAME <> "" THEN
+     DO
+      IDARY(I) = SHARE:ID
+      I = I + 1
+
+      PRINT PREFUSERNAME
+      PRINT ","
+      PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+      PRINT ","
+      PRINT SHARE:DESCRIPTION
+      PRINT ","
+
+      IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+       DO
+        PRINT "S"
+        PRINT ","
+        PRINT "TIER-1"
+        NEWLINE
+       END
+      ELSE IF SHARE:SHARECODE = 01 THEN 
+       DO
+        PRINT "C"
+        PRINT ","
+        PRINT "TIER-1"
+        NEWLINE
+       END
+
+     END
+   END
+
+
+
+
+
+
+ [ ****************************   BEGIN TIER 2   ****************************  ]
+
+  FOR EACH SHARE WITH SHARE:CHARGEOFFDATE = '--/--/--' AND
+                      SHARE:CLOSEDATE = '--/--/--' AND
+                      SHARE:OPENDATE <= DATEOFFSET(SYSTEMDATE,-6,0) AND   [ share has been open at least 6 MONTHS ]
+                      SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,-24,0) AND     [ share has been open less than 2 years ]
+                      SHARE:TYPE <> 51 AND
+                      (SHARE:SHARECODE = 00 OR   [ SHARE ]
+                      SHARE:SHARECODE = 01)      [ DRAFT ]
+
+   DO
+    IF PREFUSERNAME <> "" THEN
+     DO
+      CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+      IF FOUNDINARY = FALSE THEN
+       DO
+        CALL INSERTID   [ insert found share ID into array ]
+  
+        PRINT PREFUSERNAME
+        PRINT ","
+        PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+        PRINT ","
+        PRINT SHARE:DESCRIPTION
+        PRINT ","
+      
+        IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+         DO
+          PRINT "S"
+          PRINT ","
+          PRINT "TIER-2"
+          NEWLINE
+         END
+        ELSE IF SHARE:SHARECODE = 01 THEN 
+         DO
+          PRINT "C"
+          PRINT ","
+          PRINT "TIER-2"
+          NEWLINE
+         END
+
+       END
+     END
+   END
+
+
+
+
+
+
+ [ ****************************   BEGIN TIER 3   ****************************  ]
+
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND SHARE:TYPE <> 51
+   DO
+    BAL = BAL + SHARE:BALANCE
+   END
+   IF BAL >= $25,000.00 THEN
+    DO
+     FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND 
+                         SHARE:TYPE <> 51 AND 
+                         (SHARE:SHARECODE = 00 OR    [ SHARE ]
+                         SHARE:SHARECODE = 01)       [ DRAFT ]
+      DO 
+       FOUND = TRUE
+
+       IF PREFUSERNAME <> "" THEN
+        DO
+         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+         IF FOUNDINARY = FALSE THEN
+          DO
+           CALL INSERTID   [ insert found share ID into array ]
+
+           PRINT PREFUSERNAME
+           PRINT ","
+           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+           PRINT ","
+           PRINT SHARE:DESCRIPTION
+           PRINT ","
+          IF SHARE:SHARECODE = 00 THEN     [ savings ] 
+           DO
+            PRINT "S"
+            PRINT ","
+            PRINT "TIER-3"
+            NEWLINE
+           END
+          ELSE IF SHARE:SHARECODE = 01 THEN    [ DRAFT ]
+           DO 
+            PRINT "C"
+            PRINT ","
+            PRINT "TIER-3"
+            NEWLINE
+           END
+
+         END
+       END   
+     END
+    END
+
+
+   BAL = $0.00
+
+   FOR EACH LOAN WITH LOAN:CLOSEDATE = '--/--/--'  
+    DO
+     BAL = BAL + LOAN:BALANCE
+    END
+    IF BAL >= $10,000.00 THEN
+     DO
+      FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND 
+                          SHARE:TYPE <> 51 AND
+                          (SHARE:SHARECODE = 00 OR     [ savings ] 
+                          SHARE:SHARECODE = 01)        [ DRAFT ] 
+       DO
+        FOUND = TRUE
+
+        IF PREFUSERNAME <> "" THEN
+         DO
+          CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+          IF FOUNDINARY = FALSE THEN
+           DO
+            PRINT PREFUSERNAME
+            PRINT ","
+            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+            PRINT ","
+            PRINT SHARE:DESCRIPTION
+            PRINT ","
+
+            IF SHARE:SHARECODE = 00 THEN         [ savings ] 
+             DO
+              PRINT "S"
+              PRINT ","
+              PRINT "TIER-3"
+              NEWLINE
+             END
+            ELSE IF SHARE:SHARECODE = 01 THEN     [ DRAFT ]
+             DO 
+              PRINT "C"
+              PRINT ","
+              PRINT "TIER-3"
+              NEWLINE
+             END
+
+           END
+         END
+       END
+     END
+   
+   IF FOUND = FALSE THEN  [ agg share bal is not equal to or greater than $25,000.00, and agg loan bal is not greater than or equal to 10,000.00. ]
+                          [  Check to see if share has been open for at least 24 months ]
+    DO
+     FOR EACH SHARE WITH SHARE:OPENDATE <= DATEOFFSET(SYSTEMDATE,-24,0) AND
+                         SHARE:CLOSEDATE = '--/--/--' AND
+                         SHARE:TYPE <> 51 AND
+                        (SHARE:SHARECODE = 00 OR     [ Share ] 
+                         SHARE:SHARECODE = 01)       [ DRAFT ] 
+      DO
+       IF PREFUSERNAME <> "" THEN
+        DO
+         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+         IF FOUNDINARY = FALSE THEN
+          DO
+           PRINT PREFUSERNAME
+           PRINT ","
+           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+           PRINT ","
+           PRINT SHARE:DESCRIPTION
+           PRINT ","
+         
+           IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+            DO
+             PRINT "S" 
+             PRINT ","
+             PRINT "TIER-3"
+             NEWLINE
+            END
+           ELSE IF SHARE:SHARECODE = 01 THEN 
+            DO
+             PRINT "C"
+             PRINT ","
+             PRINT "TIER-3"
+             NEWLINE
+            END
+
+          END
+        END
+      END
+    END
+END
+
+
+
+PROCEDURE CLEARARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IDARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+
+PROCEDURE SCANARRAY
+ FOUNDINARY = FALSE
+ I = 0 
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IF IDARY(I) = SHARE:ID THEN
+     FOUNDINARY = TRUE
+  END
+
+  I = 0
+ 
+END
+
+
+
+PROCEDURE INSERTID
+
+ INSERTED = FALSE
+ I = 0
+
+ WHILE (I <= ARYSIZE AND INSERTED = FALSE)
+  DO
+   IF IDARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
+    DO
+     IDARY(I) = SHARE:ID
+     INSERTED = TRUE
+    END
+  I = I + 1
+  END
+
+  I = 0
+ 
+END
