@@ -1,0 +1,178 @@
+[
+ Name: ER.REPORT.SEARCH
+ Description: This Gathers reports for batch FTP to imaging system.
+  Uses letterfile named "FTP.REPORTS" to list templates of report names
+  See the comment at the end of this specfile for a discussion about
+  templates and how to use them.
+  Use a letterfile named "FTP.MONTHEND" to list templates of report names
+  which should only be included in the list if the user chooses to include
+  month end reports.  These reports are included in addition to those listed
+  in the "FTP.REPORTS" letterfile.
+
+]
+
+TARGET=ACCOUNT
+
+DEFINE
+ REPORTDATE=DATE                    [ WHICH GROUP OF REPORTS TO PROCESS ]
+ INPUTFILE=NUMBER                   [ FILE HANDLE TO FTP.REPORTS LETTERFILE ]
+ INPUTERROR=CHARACTER               [ ERROR MESSAGE WHEN FILE I/O HAS A PROB ]
+ REPORTNAME=CHARACTER               [ REPORT NAME OR TEMPLATE FROM LETTERFILE ]
+ LISTERROR=CHARACTER                  [ ERROR MESSAGE WHEN FILE LIST HAS A PROB ]
+ REPORTDETAIL=CHARACTER             [ REPORT SEQUENCE NUMBER DETAIL INFO ]
+ REPORTTAGS=NUMBER ARRAY(999999)    [ CHECKS FOR DUPLICATE REPORTS ]
+ TRUE=1                             [ SEQ # HAS BEEN LISTED FOR FTP ]
+ FALSE=0                            [ NOT YET LISTED FOR FTP ]
+ INCLUDEMONTHEND=NUMBER
+ ERROR=CHARACTER  
+ EMAILADDRESS=CHARACTER(40) ARRAY(99)  
+ X=NUMBER
+END
+
+SETUP
+ REPORTDATE=DATEREAD("Print Control Report Date",
+                     "The default is today")
+ IF REPORTDATE='--/--/--' THEN REPORTDATE=SYSTEMDATE
+ INCLUDEMONTHEND=NUMBERREAD("Include Month End Reports?",
+                            " 0 - No, 1 - Yes")
+ EMAILADDRESS(1) = "ethan.roberts@myfscu.com" [email addy]
+END
+
+SELECT
+ NONE
+END
+
+PRINT TITLE="Report Search for "+FORMAT("99/99/99",REPORTDATE)  REPORTCATEGORY="FMREPORTS"
+ HEADERS
+  COL=01         "Seq"
+  COL=08         "Title"
+  COL=53        RIGHT   "Pages"
+  COL=59        RIGHT   "Print"
+  COL=64        RIGHT   "Tape"
+  COL=73        RIGHT   "Date"
+  COL=79        RIGHT   "Time"
+  NEWLINE
+  PRINT REPEATCHR("-",78)
+  NEWLINE
+ END
+ [ OPEN THE LETTERFILE CONTAINING THE FILE NAMES ]
+ FILEOPEN("LETTER","REPORT.SEARCH","READ",INPUTFILE,INPUTERROR)
+ IF INPUTERROR<>"" THEN
+ [ QUIT IF THE LETTERFILE CAN'T BE FOUND ]
+  DO
+   PRINT "Can't find REPORT.NAME letterfile!"
+   CALL SENDEMAIL
+   TERMINATE
+  END
+ WHILE INPUTERROR=""
+ [ READ THRU THE LETTERFILE LISTING ]
+  DO
+   FILEREADLINE(INPUTFILE,REPORTNAME,INPUTERROR)
+   IF INPUTERROR="" AND REPORTNAME<>"" THEN CALL GOGETREPORTINFO
+  END
+ FILECLOSE(INPUTFILE,INPUTERROR)
+ IF INCLUDEMONTHEND<>0 THEN
+ [ PROCESS MONTH END REPORTS IF THEY WERE ASKED FOR ]
+  DO
+   FILEOPEN("LETTER","FTP.MONTHEND","READ",INPUTFILE,INPUTERROR)
+   IF INPUTERROR<>"" THEN
+   [ QUIT IF THE MONTH END LETTERFILE CAN'T BE FOUND ] 
+    DO
+     PRINT "Can't find FTP.MONTHEND letterfile!"
+     CALL SENDEMAIL
+     TERMINATE
+    END
+   WHILE INPUTERROR=""   [ READ THRU THE MONTH END LETTERFILE ]
+    DO
+     FILEREADLINE(INPUTFILE,REPORTNAME,INPUTERROR)
+     IF INPUTERROR="" AND REPORTNAME<>"" THEN CALL GOGETREPORTINFO
+    END
+   FILECLOSE(INPUTFILE,INPUTERROR)
+  END  [ END OF PROCESSING FOR MONTH END REPORTS ]
+ NEWLINE
+ PRINT "*** END OF REPORT FOR REPORT DATE OF "+FORMAT("99/99/99",SYSTEMDATE)
+ NEWLINE
+END
+
+PROCEDURE GOGETREPORTINFO
+[ THIS READS THRU THE FILE LISTING AND PROCESSES EACH REPORT ]
+ LISTERROR=""
+ FILELISTOPEN("REPORT",REPORTNAME,LISTERROR)
+ WHILE LISTERROR=""
+ [ READ THROUGH THE LIST OF REPORTS RETURNED ]
+  DO
+   FILELISTREAD(REPORTDETAIL,LISTERROR)
+   IF LISTERROR="" THEN CALL WRITEOUTINFO
+  END
+ FILELISTCLOSE(LISTERROR)
+END
+
+PROCEDURE WRITEOUTINFO
+[ THIS IS CALLED WHEN A REPORT NEEDS TO BE WRITTEN OUT TO THE LISTING ]
+ IF FORMAT("99/99/99",REPORTDATE)=SEGMENT(REPORTDETAIL,62,69) AND 
+    [ NOT YET TAGGED ]
+    REPORTTAGS(VALUE(SEGMENT(REPORTDETAIL,110,115)))=FALSE [  AND
+    [ NO SPECIAL FORMS ]
+    SEGMENT(REPORTDETAIL,77,77)=" " ] THEN
+  DO
+   [COL=1 SEGMENT(REPORTDETAIL,1,6)]
+   COL=01 SEGMENT(REPORTDETAIL,110,115) [holds the 6 digit seq number]
+   COL=08 SEGMENT(REPORTDETAIL,6,45)
+   COL=53        RIGHT   VALUE(SEGMENT(REPORTDETAIL,47,52)) 
+   COL=59        RIGHT   VALUE(SEGMENT(REPORTDETAIL,54,56))
+   COL=64        RIGHT   VALUE(SEGMENT(REPORTDETAIL,58,60))
+   COL=73        RIGHT   SEGMENT(REPORTDETAIL,62,69)
+   COL=79        RIGHT   SEGMENT(REPORTDETAIL,71,75)
+   NEWLINE
+   REPORTTAGS(VALUE(SEGMENT(REPORTDETAIL,110,115)))=TRUE
+   [ NOW HAS BEEN TAGGED ]
+  END
+END
+
+
+[ ************** BELOW PROCEDURE IS NOT BEING USED **************]
+
+PROCEDURE SENDEMAIL
+ X = 1
+       
+ EMAILSTART("","","",ERROR) 
+ EMAILLINE("From: Symitar Host",ERROR)
+ 
+ WHILE EMAILADDRESS(X) <> ""
+  DO 
+   EMAILLINE("To: "+EMAILADDRESS(X),ERROR) 
+   X=X+1 
+  END 
+ 
+ EMAILLINE("Subject: FTP STAR",ERROR) 
+ EMAILLINE("An issue occured with the FTP STAR, please resolve the issue.",ERROR) 
+ EMAILSEND(ERROR)
+END
+
+[  TEMPLATES  The "Name Template" allows you to select only the file
+names matching a specified "template". The special characters you can
+use in a "template" are the wild card character "+" which matches any
+sequence of characters, the character "*" which matches any single
+character except for the period "." character, and the character "-"
+which matches any sequence of characters except for the period "."
+character. For example, if you want to see all file names beginning
+with the letter "A" then you would specify the template "A+". If you
+want to see all file names then you would specify the template "+",
+which is the default response. If you want to see all the file names
+that contain the letters "ATM" somewhere in the file name then the
+template would be "+ATM+". If you want to see all the file names that
+begin with "A" and end with ".REP" then the template would be "A+.REP".
+If you want to see all the file names that consist of the letters
+"MONTH" followed by a single character then the template would be
+"MONTH*". If you want to see all the file names that have a single
+period in them then the template would be "-.-". Templates are
+particularly useful when hunting through a large number of files for
+the name you want. You can also use multiple templates separated by
+commas. For example, if you want to see all the file names beginning
+with "A" or "B" or "C" then the template would be "A+,B+,C+". In
+addition, you can use the backslash character "\" to exclude file
+names matching another template. For example, if you want to see all
+the file names beginning with "A" that do NOT end with "Y" and do NOT
+end with "Z" then the template would be "A+\+Y\+Z". Do not use " (double
+quotes) when specifying the template.
+]

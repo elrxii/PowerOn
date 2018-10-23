@@ -1,0 +1,368 @@
+[  ER.ENSENTA.RDC.BLACKLIST
+
+   Created by
+   Ethan Roberts
+   on 10/11/2018
+
+  
+   This specfile will run alongside "ER.ENSENTA.RDC".  This specfile will create a data file of shares that should be
+   blacklisted.
+
+
+   *Note:  Within this specfile, an array of share id's is used of the particular account in the scope.  
+
+           How it works: When a share in the scoped account meets criteria, the share and it's tier is printed, and 
+           it's share-ID is then placed inside the "share ID array". Once the share-ID has entered the share ID array, it
+           will not be printed again regardless of what criteria it meets.  This is to cut duplicates from
+           the program.
+
+]
+
+
+TARGET = ACCOUNT
+
+DEFINE
+ PREFUSERNAME = CHARACTER
+ BAL = MONEY
+ TRUE = 1
+ FALSE = 0
+
+ MYWARNING = 65
+
+ IDARY = CHARACTER ARRAY (19)
+ ARYSIZE = NUMBER
+ I = NUMBER
+
+ FOUNDINARY = NUMBER [ bool ]
+ INSERTED = NUMBER   [ bool ]
+ FOUND = NUMBER  [ bool ]
+
+END
+
+SETUP
+ ARYSIZE = 19
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE = '--/--/--'
+END
+
+
+PRINT TITLE = "Ensenta BLACKLIST RDC Report"
+HEADER = ""
+
+  CALL CLEARARY
+  BAL = $0.00   [ RESET ]
+  FOUND = FALSE [ RESET ]
+
+  PREFUSERNAME = ""   [ RESET ]
+  FOR EACH PREFERENCE 
+   DO
+    PREFUSERNAME = PREFERENCE:HBUSERNAME
+   END
+
+
+
+
+  [************* GMAB *************]
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
+                      SHARE:TYPE = 51 AND  [ GMAB ]
+                      (SHARE:SHARECODE = 00 OR  [ SHARE ]
+                      SHARE:SHARECODE = 01)     [ DRAFT ]
+
+   DO
+    FOUND = TRUE   [ Found GMAB on account ]
+   END
+   
+   IF FOUND = TRUE THEN   [ If GMAB is found on account ]
+    DO
+     FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+      DO
+       IF PREFUSERNAME <> "" THEN
+        DO
+         IDARY(I) = SHARE:ID
+         I = I + 1
+
+         PRINT PREFUSERNAME
+         PRINT ","
+         PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+         PRINT ","
+         PRINT SHARE:DESCRIPTION
+         PRINT ","
+
+         IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+          DO
+           PRINT "S"
+           PRINT ","
+           PRINT "N"
+           NEWLINE
+          END
+         ELSE IF SHARE:SHARECODE = 01 THEN 
+          DO
+           PRINT "C"
+           PRINT ","
+           PRINT "N"
+           NEWLINE
+          END
+        END
+      END
+    END
+
+
+
+
+  [************* Charge-Off *************]
+
+  FOUND = FALSE [ RESET ]
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
+                      SHARE:CHARGEOFFDATE <> '--/--/--' AND
+                      (SHARE:SHARECODE = 00 OR  [ SHARE ]
+                      SHARE:SHARECODE = 01)     [ DRAFT ]
+
+   DO
+    FOUND = TRUE   [ Found charge-off on account ]
+   END
+   
+   IF FOUND = TRUE THEN   [ If GMAB is found on account ]
+    DO
+     FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+      DO
+       IF PREFUSERNAME <> "" THEN
+        DO
+         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+         IF FOUNDINARY = FALSE THEN
+          DO
+           CALL INSERTID   [ insert found share ID into array ]
+
+           PRINT PREFUSERNAME
+           PRINT ","
+           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+           PRINT ","
+           PRINT SHARE:DESCRIPTION
+           PRINT ","
+
+           IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+            DO
+             PRINT "S"
+             PRINT ","
+             PRINT "N"
+             NEWLINE
+            END
+           ELSE IF SHARE:SHARECODE = 01 THEN 
+            DO
+             PRINT "C"
+             PRINT ","
+             PRINT "N"
+             NEWLINE
+            END
+          END
+        END
+      END
+    END
+
+
+  [************* Account Warning 65 (Blacklist warning) *************]
+
+  FOUND = FALSE [ RESET ]
+  IF ANYWARNING(ACCOUNT,MYWARNING) THEN
+
+   DO
+    FOUND = TRUE   [ Found Warning ]
+   END
+   
+   IF FOUND = TRUE THEN 
+    DO
+     FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+      DO
+       IF PREFUSERNAME <> "" THEN
+        DO
+
+         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+         IF FOUNDINARY = FALSE THEN
+          DO
+           CALL INSERTID   [ insert found share ID into array ]
+
+           PRINT PREFUSERNAME
+           PRINT ","
+           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+           PRINT ","
+           PRINT SHARE:DESCRIPTION
+           PRINT ","
+
+           IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+            DO
+             PRINT "S"
+             PRINT ","
+             PRINT "N"
+             NEWLINE
+            END
+           ELSE IF SHARE:SHARECODE = 01 THEN 
+            DO
+             PRINT "C"
+             PRINT ","
+             PRINT "N"
+             NEWLINE
+            END
+          END
+        END
+      END
+    END
+
+
+ [************* Share Closed *************]
+
+  FOUND = FALSE [ RESET ]
+  FOR EACH SHARE WITH SHARE:CLOSEDATE <> '--/--/--' AND
+                     (SHARE:SHARECODE = 00 OR  [ SHARE ]
+                      SHARE:SHARECODE = 01)     [ DRAFT ]
+
+   DO
+    FOUND = TRUE  
+ 
+    IF FOUND = TRUE THEN 
+     DO
+      IF PREFUSERNAME <> "" THEN
+       DO
+        CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+        IF FOUNDINARY = FALSE THEN
+         DO
+          CALL INSERTID   [ insert found share ID into array ]
+
+          PRINT PREFUSERNAME
+          PRINT ","
+          PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+          PRINT ","
+          PRINT SHARE:DESCRIPTION
+          PRINT ","
+
+          IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+           DO
+            PRINT "S"
+            PRINT ","
+            PRINT "N"
+            NEWLINE
+           END
+          ELSE IF SHARE:SHARECODE = 01 THEN 
+           DO
+            PRINT "C"
+            PRINT ","
+            PRINT "N"
+            NEWLINE
+           END
+         END
+       END
+       FOUND = FALSE  [ RESET ]
+     END
+   END
+
+
+
+
+
+
+ [************* Share Open Less than 30 Days *************]
+
+  FOUND = FALSE [ RESET ]
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
+                      SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,0,-30) AND  [ share open less than 30 days ]
+                     (SHARE:SHARECODE = 00 OR   [ SHARE ]
+                      SHARE:SHARECODE = 01)     [ DRAFT ]
+
+   DO
+    FOUND = TRUE  
+ 
+    IF FOUND = TRUE THEN 
+     DO
+      IF PREFUSERNAME <> "" THEN
+       DO
+        CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+        IF FOUNDINARY = FALSE THEN
+         DO
+          CALL INSERTID   [ insert found share ID into array ]
+
+          PRINT PREFUSERNAME
+          PRINT ","
+          PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+          PRINT ","
+          PRINT SHARE:DESCRIPTION
+          PRINT ","
+
+          IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+           DO
+            PRINT "S"
+            PRINT ","
+            PRINT "N"
+            NEWLINE
+           END
+          ELSE IF SHARE:SHARECODE = 01 THEN 
+           DO
+            PRINT "C"
+            PRINT ","
+            PRINT "N"
+            NEWLINE
+           END
+         END
+       END
+     FOUND = FALSE  [ RESET ]
+     END
+   END
+END
+
+
+
+
+
+
+PROCEDURE CLEARARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IDARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+
+PROCEDURE SCANARRAY
+ FOUNDINARY = FALSE
+ I = 0 
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IF IDARY(I) = SHARE:ID THEN
+     FOUNDINARY = TRUE
+  END
+
+  I = 0
+ 
+END
+
+
+
+PROCEDURE INSERTID
+
+ INSERTED = FALSE
+ I = 0
+
+ WHILE (I <= ARYSIZE AND INSERTED = FALSE)
+  DO
+   IF IDARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
+    DO
+     IDARY(I) = SHARE:ID
+     INSERTED = TRUE
+    END
+  I = I + 1
+  END
+
+  I = 0
+ 
+END

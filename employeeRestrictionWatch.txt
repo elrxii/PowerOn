@@ -1,0 +1,201 @@
+[ ER.EMPLOYEE.RESTRICTION.WATCH
+
+  Created by
+  Ethan Roberts
+  on 06/21/2017
+
+  This specfile will read-in letterfile "EMPLOYEE.SSN" and scrub the database and look for accounts with an active employee linked to it.
+
+]
+
+
+TARGET = ACCOUNT
+
+DEFINE
+ FILENUMBER = NUMBER
+ FERROR = CHARACTER
+ FLINE = CHARACTER
+ EMPLOYEENAME = CHARACTER
+
+ TRUE = NUMBER
+ FALSE = NUMBER
+
+ FOUNDPRIMARY = NUMBER
+ FOUNDJOINT = NUMBER
+ LASTACCT = CHARACTER
+ COUNTER = NUMBER
+END
+
+SETUP 
+  COUNTER = 0
+  LASTACCT = ""
+  TRUE = 1
+  FALSE = 0
+
+  FILEOPEN("LETTER","EMPLOYEE.SSN","READ",FILENUMBER,FERROR)
+  IF FERROR <> "" THEN
+   DO
+    PRINT "ERROR! "+FERROR
+    TERMINATE
+   END
+END
+
+SELECT
+ NONE
+END
+
+
+PRINT TITLE = "Accounts Needing Restriction"  REPORTCATEGORY="NOTICES"
+HEADER = ""
+
+  LASTACCT = ""
+  WHILE FERROR = ""
+   DO
+    FILEREADLINE(FILENUMBER,FLINE,FERROR)   [ read line ]
+    
+    IF FLINE <> "" THEN    [ making sure FLINE var has an SSN and is not empty...without this check, the program will error ]
+     DO
+      FOR ACCOUNT WITH SSN FLINE 
+       DO
+        IF ACCOUNT:CLOSEDATE = '--/--/--' AND ACCOUNT:NUMBER <> LASTACCT THEN   [ if the account is open, run the code ]
+         DO
+          LASTACCT = ACCOUNT:NUMBER
+          FOUNDPRIMARY = FALSE
+          FOUNDJOINT = FALSE
+          FOR EACH NAME WITH (NAME:SSN = FLINE AND NAME:TYPE = 0)   [ if employee is primary and in the letterfile ]
+           DO 
+            FOUNDPRIMARY = TRUE
+            CALL PRINTPRIMARYACCOUNT  
+           END
+           IF FOUNDPRIMARY = FALSE THEN    [ if employee primary account not found ]
+            DO
+             CALL CHECKSHARENAME           [ check all open shares for an employee ]
+             CALL CHECKLOANNAME            [ check all open loans for an employee ]
+             IF FOUNDJOINT = TRUE THEN               
+             CALL PRINTNONPRIMARYACCOUNT    
+         END[IF FOUNDPRIMARY]       
+        END[IF ACCOUNT CLOSEDATE]
+       END[FOR ACCOUNT WITH]
+     END[IF FLINE]
+   END[WHILE]
+
+  FILECLOSE(FILENUMBER,FERROR) 
+END
+
+
+TOTAL
+ NEWLINE
+ PRINT "Total FM's:  "
+ PRINT COUNTER
+END
+
+
+
+
+PROCEDURE PRINTPRIMARYACCOUNT
+
+   IF (ACCOUNT:RESTRICT <> 3 AND ACCOUNT:RESTRICT <> 4)  THEN        [ if employee account does not have "Employee" Restricted Access turned on, turn it on ]
+    DO 
+     PRINT ACCOUNT:NUMBER
+     COUNTER = COUNTER + 1
+     NEWLINE
+    END[IF]
+
+
+
+[  ** FM PORTION BELOW, NOT BEING USED
+
+  IF ACCOUNT:TYPE = 00 THEN            [ if account type is General Membership, make it employee ]
+   DO 
+    PRINT "ACCOUNT "+ACCOUNT:NUMBER+" MODIFY ACCOUNT "
+    NEWLINE
+    PRINT "CHANGE TYPE FROM "
+    COL=49 ACCOUNT:TYPE
+    COL=89 " TO "
+    COL=93 "01"
+    NEWLINE
+    COUNTER = COUNTER + 1
+   END[IF]
+
+   IF ACCOUNT:RESTRICT <> 3 THEN        [ if employee account does not have "Employee" Restricted Access turned on, turn it on ]
+    DO 
+     PRINT "ACCOUNT "+ACCOUNT:NUMBER+" MODIFY ACCOUNT "
+     NEWLINE
+     PRINT " CHANGE RESTRICT FROM "
+     COL=49 ACCOUNT:RESTRICT
+     COL=90 " TO "
+     COL=93 "03"
+     NEWLINE
+     COUNTER = COUNTER + 1
+    END[IF]
+]
+
+END
+
+
+
+PROCEDURE PRINTNONPRIMARYACCOUNT
+
+   IF (ACCOUNT:RESTRICT <> 3 AND ACCOUNT:RESTRICT <> 4)  THEN        [ if employee account does not have "Employee" Restricted Access turned on, turn it on ]
+    DO 
+     PRINT ACCOUNT:NUMBER
+     COUNTER = COUNTER + 1
+     NEWLINE
+    END[IF]
+
+[
+  IF ACCOUNT:TYPE = 00 THEN      [ if account type is General Membership, make it employee ]
+   DO
+    PRINT "ACCOUNT "+ACCOUNT:NUMBER+" MODIFY ACCOUNT "
+    NEWLINE
+    PRINT "CHANGE TYPE FROM "
+    COL=49 ACCOUNT:TYPE
+    COL=89 " TO "
+    COL=93 "01" 
+    NEWLINE
+    COUNTER = COUNTER + 1
+   END[IF]
+  IF ACCOUNT:RESTRICT <> 3 THEN        [ if employee account does not have "Employee" Restricted Access turned on, turn it on ]
+   DO 
+    PRINT "ACCOUNT "+ACCOUNT:NUMBER+" MODIFY ACCOUNT "
+    NEWLINE
+    PRINT " CHANGE RESTRICT FROM "
+    COL=49 ACCOUNT:RESTRICT
+    COL=90 " TO "
+    COL=93 "03"
+    NEWLINE
+    COUNTER = COUNTER + 1
+   END[IF]
+]
+
+END
+
+
+
+
+
+
+
+PROCEDURE CHECKSHARENAME
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE NAME WITH SHARE NAME:SSN = FLINE
+     DO
+      FOUNDJOINT = TRUE
+     END
+    END
+END 
+
+
+
+PROCEDURE CHECKLOANNAME
+
+  FOR EACH LOAN WITH LOAN:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH LOAN NAME WITH LOAN NAME:SSN = FLINE
+     DO 
+      FOUNDJOINT = TRUE
+     END
+   END 
+END

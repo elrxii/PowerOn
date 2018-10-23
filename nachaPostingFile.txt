@@ -1,0 +1,82 @@
+[  ER.NACHA.POSTING.FM
+
+   Created by
+   Ethan Roberts
+   on 07/26/2018
+  
+   This program will read from letterfile "NACHAPOSTINGFILE" and create a Tracking 34 on the account.  (This was written for Ensenta remote-deposit)
+
+]
+
+
+TARGET = ACCOUNT
+
+DEFINE
+ FNUMBER = NUMBER
+ FERROR = CHARACTER
+ FLINE = CHARACTER
+
+ ROUTINGNUM = CHARACTER
+ TEMPVAR = CHARACTER
+ SHID = CHARACTER
+ ACCTNUM = CHARACTER
+ FPOS = NUMBER
+ 
+ NEWTRACKINGTYPE = NUMBER
+END
+
+SETUP
+ ROUTINGNUM = "622262284279"   [ if this exact string is read at beginning of file-line, the line will be processed. ]
+ NEWTRACKINGTYPE = 34          [ This will FM accounts and create this tracking number.  Change this line to change tracking type created ]
+
+ FILEOPEN("LETTER","NACHAPOSTINGFILE","READ",FNUMBER,FERROR)
+
+ IF FERROR<>"" THEN
+  DO 
+   PRINT "Error Opening File: "+FERROR
+   TERMINATE 
+  END 
+END
+
+SELECT
+ NONE
+END
+
+
+PRINT TITLE = "NACHA POSTING FM"
+HEADER = ""
+
+  WHILE FERROR = ""
+   DO 
+    FILEGETPOS(FNUMBER,FPOS,FERROR)       [ start at beginning byte of line ]
+    FILEREAD(FNUMBER,12,TEMPVAR,FERROR)   [ read first 12 chars of line ]
+
+    IF TEMPVAR = ROUTINGNUM THEN          [ check if "ROUTINGNUM" string is there ]
+     DO  
+      FILESETPOS(FNUMBER,FPOS+12,FERROR)   [ jump to starting byte of share id ] 
+      FILEREAD(FNUMBER,2,SHID,FERROR)      [ Get share ID ]
+      FILESETPOS(FNUMBER,FPOS+14,FERROR)   [ jump to starting byte of account number ]
+      FILEREAD(FNUMBER,10,ACCTNUM,FERROR)  [ read into acctnum ]
+
+      FOR ACCOUNT ACCTNUM
+       DO
+        CALL CREATETRACKING
+       END
+     END[IF TEMPVAR]
+     
+      FILEREADLINE(FNUMBER,FLINE,FERROR)   [ CR/LF (get to next line) ]
+
+   END[WHILE]
+END
+
+
+
+
+
+PROCEDURE CREATETRACKING
+ PRINT "ACCOUNT " + ACCOUNT:NUMBER + " CREATE TRACKING AFTERLAST"
+ NEWLINE
+ PRINT " SET TYPE TO "
+ PRINT NEWTRACKINGTYPE
+ NEWLINE
+END
