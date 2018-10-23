@@ -1,3 +1,13 @@
+[  ER.GETJOINTS.SUBROUTINE
+
+   Created by
+   Ethan Roberts
+   on 10/17/2018
+
+   This subroutine will parse an account and get all name-joints and share ID's accociated with the name.
+ 
+]
+
 SUBROUTINE
 
 TARGET = ACCOUNT
@@ -48,13 +58,36 @@ PRINT TITLE = "Get Joints Report"
 
    CALL CLEARIDARY  
    CALL ASSOCIATEIDSWITHNAMES
-  
+
    @ENVPARAMCHAR1=NAMEARY(0)
    @ENVPARAMCHAR2=IDARY(0)
    @ENVPARAMCHAR3=NAMEARY(1)                  
    @ENVPARAMCHAR4=IDARY(1)
+   @ENVPARAMCHAR5=NAMEARY(2)
+   @ENVPARAMCHAR6=IDARY(2)
+   @ENVPARAMCHAR7=NAMEARY(3)                  
+   @ENVPARAMCHAR8=IDARY(3)
+
    
-   
+  [ ** This "IF" clause is used to append extra info (comma-delimited info) ** ]
+  [ ** Used in case you run out of ENVPARAMS (there are only 10 ENVPARAMS)  ** ]
+
+
+
+  [ ------ Check if we need to append extra data to ENVPARAM vars ------ ]
+   IF NAMEARY(5) <> "" THEN
+    DO
+     @ENVPARAMCHAR9=NAMEARY(4)+","+NAMEARY(5)                  
+     @ENVPARAMCHAR10=IDARY(4)+","+IDARY(5)
+    END
+   ELSE [ no extra data found, do not append ]
+    DO
+     @ENVPARAMCHAR9=NAMEARY(4)                  
+     @ENVPARAMCHAR10=IDARY(4)
+    END 
+
+
+
 END
 
 
@@ -131,11 +164,11 @@ PROCEDURE ASSOCIATEIDSWITHNAMES
    DO
     FOR EACH SHARE NAME
      DO
-      FOR I = 0 TO 1   [ only want to look at the first two joints on account ]
+      FOR I = 0 TO ARYSIZE   [ only want to look at the first two joints on account ]
        DO
         IF SHARE NAME:LONGNAME = NAMEARY(I) THEN
          DO
-          IF IDARY(I) = "" THEN   [ this "if" clause is only added for comma delimiting ]
+          IF IDARY(I) = "" THEN  [ this "if" clause is only added for formatting output of ID-array ]
            IDARY(I) = SHARE:ID
           ELSE
            IDARY(I) = IDARY(I)+", "+SHARE:ID
@@ -143,7 +176,7 @@ PROCEDURE ASSOCIATEIDSWITHNAMES
        END 
      END
    END
-  
+
 END
 
 
