@@ -69,16 +69,19 @@ PRINT TITLE = "Get Joints Report"
    @ENVPARAMCHAR8=IDARY(3)
 
    
-  [ ** This "IF" clause is used to append extra info (comma-delimited info) ** ]
-  [ ** Used in case you run out of ENVPARAMS (there are only 10 ENVPARAMS)  ** ]
+
+
+  [  The "IF" clause below is used to append extra info of another would-be ENVPARAM variable  ]
+  [  if more than 10 ENVARG vars existed. Used in case you run out of -                        ]
+  [  ENVPARAMS and you need to pass back more data. (there are only 10 ENVPARAMS)              ]
 
 
 
   [ ------ Check if we need to append extra data to ENVPARAM vars ------ ]
-   IF NAMEARY(5) <> "" THEN
+   IF NAMEARY(5) <> "" THEN  [ if extra data exists ]
     DO
-     @ENVPARAMCHAR9=NAMEARY(4)+","+NAMEARY(5)                  
-     @ENVPARAMCHAR10=IDARY(4)+","+IDARY(5)
+     @ENVPARAMCHAR9=NAMEARY(4)+"~"+NAMEARY(5)    [ begin appending array data to ENVPARAM vars ]              
+     @ENVPARAMCHAR10=IDARY(4)+"~"+IDARY(5)
     END
    ELSE [ no extra data found, do not append ]
     DO
