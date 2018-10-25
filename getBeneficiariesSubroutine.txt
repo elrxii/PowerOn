@@ -4,7 +4,7 @@
    Ethan Roberts
    on 10/25/2018
 
-   This subroutine will parse an account and get all names and share ID's accociated with the type.
+   This subroutine will parse an account and get all Share Name Tracking 50's and share ID's. 
  
 ]
 
