@@ -66,6 +66,8 @@ HEADER = ""
 
   [************* GMAB *************]
 
+  [ ************ REMOVED FROM CODE ************* 
+
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
                       SHARE:TYPE = 51 AND  [ GMAB ]
                       (SHARE:SHARECODE = 00 OR  [ SHARE ]
@@ -109,7 +111,7 @@ HEADER = ""
       END
     END
 
-
+]
 
 
   [************* Charge-Off *************]
