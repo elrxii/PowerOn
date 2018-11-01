@@ -1,0 +1,354 @@
+[
+ SymForm PDF Driver        - PERSONAL.SIGCARDADDJT
+ Auto generated variables  - PERSONAL.SIGCARDADDJT.DEF
+ Auto generated procedures - PERSONAL.SIGCARDADDJT.PRO
+ PDF Form filename         - PERSONAL.SIGCARDADDJT.pdf
+
+ Author:   FSCU\ethan.roberts
+ Created:  10/22/2018 1:35:31 PM 
+ Version:  SymPDFCreator 4.0.1.0
+]
+SUBROUTINE DEMAND WINDOWS
+
+TARGET = ACCOUNT
+
+DEFINE
+ #INCLUDE "RD.WINDOWS.DEF"
+ #INCLUDE "RD.GETDATA.DEF"
+ #INCLUDE "SYMPDF.DEF"
+ #INCLUDE "PERSONAL.SIGCARDADDJT.DEF"
+
+ ERRORTEXT = CHARACTER
+END
+
+SETUP
+                              [ PRINT OPTIONS            ]
+ PRINTERNAME   = ""           [ PRINTER NAME (OPTIONAL)  ]
+
+ PRINTCOPIES   = 1            [ 0 = ONE COPY (DEFAULT)   ]
+                              [ 1 = ONE COPY             ]
+                              [ n = n COPIES             ]
+
+ PRINTMODE     = 0            [ 0 = FULL (DEFAULT)       ]
+                              [ 1 = AUTOMATIC            ]
+                              [ 2 = SILENT               ]
+
+ PRINTANDTHEN  = 0            [ 0 = DO NOTHING (DEFAULT) ]
+                              [ 1 = SUBMIT FORM          ]
+                              [ 2 = CLOSE FORM           ]
+
+ PRINTDUPLEX   = 0            [ 0 = DEFAULT (DEFAULT)    ]
+                              [ 1 = SIMPLEX              ]
+                              [ 2 = DUPLEX LONG EDGE     ]
+                              [ 3 = DUPLEX SHORT EDGE    ]
+
+ PRINTCONTENTS = 0            [ 0 = DOC (DEFAULT)        ]
+                              [ 1 = DOC AND COMMENTS     ]
+                              [ 2 = FORM FIELDS ONLY     ]
+
+ FORMNAME = "PERSONAL.SIGCARDADDJT"
+ CALL FORMSETUP
+ 
+ [ NOTE: if you don't want to load previous saved forms 
+   set the following LOADSAVEDFORMS flag to FALSE ]
+ LOADSAVEDFORMS = TRUE
+ SAVEDESCRIPTION = FORMNAME
+ 
+ FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+   CALL DATASETUP
+   CALL CUSTOMSETUP
+  END
+
+ CLOSEFORM = FALSE
+ WHILELIMIT = 100000
+ WHILE (CLOSEFORM = FALSE)
+  DO
+   CALL SHOWFORM
+   CALL CLEARCHECKBOXES
+   CALL GETRESPONSE
+
+   IF (FORMMESSAGE = "SUBMIT") THEN
+    DO
+     CLOSEFORM = CLOSEAFTERSUBMIT
+     IF (DOFORMFMP = TRUE AND FMSUCCEEDED = FALSE) THEN
+      DO
+       CALL FORMFMP
+       IF (FORMFMPERROR <> "") THEN
+        DO
+         POPUPMESSAGE(2, "PERSONAL.SIGCARDADDJT FM ERROR: " + FORMFMPERROR)
+         CLOSEFORM = FALSE
+        END
+      END
+     CALL FINALIZEFORM
+     IF (DOOPTICAL = TRUE AND OPTICALTYPE <> "") THEN
+      DO
+       CALL STOREOPTICAL
+       IF (OPTICALERROR <> "") THEN
+        DO
+         POPUPMESSAGE(2,"PERSONAL.SIGCARDADDJT OPTICAL ERROR: " + OPTICALERROR)
+         CLOSEFORM = FALSE
+        END
+      END
+    END
+   FORMVERSION = FORMVERSION + 1
+  END
+END
+
+PRINT TITLE = "PDF FORM " + FORMNAME
+ SUPPRESSNEWLINE
+END
+
+[
+ This procedure is to initialize custom variables defined on the
+ PDF Form file. Any variables not recognized by the 'SymPDF Creator'
+ will be declared as a custom CHARACTER variable with the field name.
+
+ Examples:
+   MYFIELD = "MYVALUE"
+   MYFIELD = FORMAT("99/99/9999",SYSTEMDATE)
+]
+PROCEDURE CUSTOMSETUP
+
+ INITSUBROUTINE(ERRORTEXT)
+
+[ NOTE: ENVARGCHARAS 1 - 4 are holding first four joints on the account. ENVARGCHARS 5- 10 will hold additional name joints. ]
+
+  @ENVARGCHAR1=""
+  @ENVARGCHAR2=""
+  @ENVARGCHAR3=""                  
+  @ENVARGCHAR4=""
+  @ENVARGCHAR5=""
+  @ENVARGCHAR6=""
+  @ENVARGCHAR7=""                  
+  @ENVARGCHAR8=""
+  @ENVARGCHAR9=""
+  @ENVARGCHAR10=""
+
+  EXECUTE("ER.GETSHAREJOINTS.SUBROUTINE",ERRORTEXT)
+
+  JOINTID1 = @ENVARGCHAR6   [ These variables contain all                                             ]
+  JOINTID2 = @ENVARGCHAR8   [ ID'S that joints are on                                                 ]
+  JOINTID3 = @ENVARGCHAR10  [ JOINTID3 may contain more than one name, if so, it will be comma-delimited ]
+  JOINTID4 = "" 
+
+  Joint3 = @ENVARGCHAR9  [ Holding Share Name that is possibly comma-delimited with more data ]
+  Joint4 = ""
+
+  [ ---------------- Check and see if JOINTID3 has more than one piece of data (data is tilde-delimited) ---------------- ]
+  [ ---------------- @ENVARGCHAR9 and @ENVARGCHAR10 may contain extra data.  If so, the data is tilde-   ---------------- ]
+  [ ---------------- delimited.  This was done because ENVARGS only contains 10 variables.               ---------------- ]
+
+
+  [ ------ Check if JOINTID3 has multiple pieces of data ------ ]
+  IF CHARACTERSEARCH(JOINTID3,"~") > 0  THEN       [ ----- if tilde-delimted ----- ]                       
+   DO 
+    [ Separate data and store names ]
+    Joint3 = SEGMENT(JOINT3,1,CHARACTERSEARCH(JOINT3,"~")-1)
+    Joint4 = SEGMENT(@ENVARGCHAR9,CHARACTERSEARCH(@ENVARGCHAR9,"~")+1,LENGTH(@ENVARGCHAR9))
+
+    [ Separate data and store share ID's ]
+    JOINTID3 = SEGMENT(JOINTID3,1,CHARACTERSEARCH(JOINTID3,"~")-1)
+    JOINTID4 = SEGMENT(@ENVARGCHAR10,CHARACTERSEARCH(@ENVARGCHAR10,"~")+1,LENGTH(@ENVARGCHAR10))
+   END
+
+
+  [ ----- Data has now been parsed and stored in variables, begin working with data ----- ]
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE NAME
+     DO
+      IF SHARE NAME:LONGNAME = @ENVARGCHAR5 THEN
+       DO
+        Joint1 = @ENVARGCHAR5
+        JointBirthdate1 = SHARE NAME:BIRTHDATE
+        JointCity1 = SHARE NAME:CITY
+        JointDL1 = SHARE NAME:IDENTIDDESCRIPTION:1
+        JointEmployer1 = SHARE NAME:EMPLOYERNAME
+        JointHomePhone1 = SHARE NAME:HOMEPHONE
+        JointMobilePhone1 = SHARE NAME:MOBILEPHONE
+        JointOccupation1 = SHARE NAME:OCCUPATION
+        JointSSN1 = SHARE NAME:SSN
+        JointState1 = SHARE NAME:STATE
+        JointStreet1 = SHARE NAME:STREET
+        JointWorkPhone1 = SHARE NAME:WORKPHONE
+        JointZip1 = SHARE NAME:ZIPCODE
+       END
+      ELSE IF SHARE NAME:LONGNAME = @ENVARGCHAR7 THEN
+       DO
+        Joint2 = @ENVARGCHAR7
+        JointBirthdate2 = SHARE NAME:BIRTHDATE
+        JointCity2 = SHARE NAME:CITY
+        JointDL2 = SHARE NAME:IDENTIDDESCRIPTION:1
+        JointEmployer2 = SHARE NAME:EMPLOYERNAME
+        JointHomePhone2 = SHARE NAME:HOMEPHONE
+        JointMobilePhone2 = SHARE NAME:MOBILEPHONE
+        JointOccupation2 = SHARE NAME:OCCUPATION
+        JointSSN2 = SHARE NAME:SSN
+        JointState2 = SHARE NAME:STATE
+        JointStreet2 = SHARE NAME:STREET
+        JointWorkPhone2 = SHARE NAME:WORKPHONE
+        JointZip2 = SHARE NAME:ZIPCODE
+       END
+      ELSE IF SHARE NAME:LONGNAME = Joint3 THEN
+       DO
+        JointBirthdate3 = SHARE NAME:BIRTHDATE
+        JointCity3 = SHARE NAME:CITY
+        JointDL3 = SHARE NAME:IDENTIDDESCRIPTION:1
+        JointEmployer3 = SHARE NAME:EMPLOYERNAME
+        JointHomePhone3 = SHARE NAME:HOMEPHONE
+        JointMobilePhone3 = SHARE NAME:MOBILEPHONE
+        JointOccupation3 = SHARE NAME:OCCUPATION
+        JointSSN3 = SHARE NAME:SSN
+        JointState3 = SHARE NAME:STATE
+        JointStreet3 = SHARE NAME:STREET
+        JointWorkPhone3 = SHARE NAME:WORKPHONE
+        JointZip3 = SHARE NAME:ZIPCODE
+       END
+      ELSE IF SHARE NAME:LONGNAME = Joint4 THEN
+       DO
+        JointBirthdate4 = SHARE NAME:BIRTHDATE
+        JointCity4 = SHARE NAME:CITY
+        JointDL4 = SHARE NAME:IDENTIDDESCRIPTION:1
+        JointEmployer4 = SHARE NAME:EMPLOYERNAME
+        JointHomePhone4 = SHARE NAME:HOMEPHONE
+        JointMobilePhone4 = SHARE NAME:MOBILEPHONE
+        JointOccupation4 = SHARE NAME:OCCUPATION
+        JointSSN4 = SHARE NAME:SSN
+        JointState4 = SHARE NAME:STATE
+        JointStreet4 = SHARE NAME:STREET
+        JointWorkPhone4 = SHARE NAME:WORKPHONE
+        JointZip4 = SHARE NAME:ZIPCODE
+       END
+     END
+   END
+
+
+
+[************ Begin Beneficiary Section ************]
+
+ Ben1LongName = ""
+ Ben2LongName = ""
+ Ben3LongName = ""
+ Ben4LongName = ""
+
+ INITSUBROUTINE(ERRORTEXT)
+
+  @ENVARGCHAR1=""
+  @ENVARGCHAR2=""
+  @ENVARGCHAR3=""                  
+  @ENVARGCHAR4=""
+  
+
+  EXECUTE("ER.GETMOREBENEFS.SUBROUTINE",ERRORTEXT)
+
+
+  Ben1LongName = @ENVARGCHAR1
+  BENSHID1 = @ENVARGCHAR2
+
+  Ben2LongName = @ENVARGCHAR3
+  BENSHID2 = @ENVARGCHAR4
+
+  Ben3LongName = @ENVARGCHAR5
+  BENSHID3 = @ENVARGCHAR6
+ 
+  Ben4LongName = @ENVARGCHAR7
+  BENSHID4 = @ENVARGCHAR8
+
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE TRACKING WITH SHARE TRACKING:TYPE = 50 AND SHARE TRACKING:EXPIREDATE = '--/--/--'
+     DO
+      IF UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) = Ben1LongName THEN
+       DO
+        Ben1Phone = SHARE TRACKING:USERCHAR11
+        Ben1Percent = FORMAT("##9.999%",SHARE TRACKING:USERRATE1)
+       END
+      IF UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) = Ben2LongName THEN
+       DO
+        Ben2Phone = SHARE TRACKING:USERCHAR11
+        Ben2Percent = FORMAT("##9.999%",SHARE TRACKING:USERRATE1)
+       END
+      IF UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) = Ben3LongName THEN
+       DO
+        Ben3Phone = SHARE TRACKING:USERCHAR11
+        Ben3Percent = FORMAT("##9.999%",SHARE TRACKING:USERRATE1)
+       END
+      IF UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) = Ben4LongName THEN
+       DO
+        Ben4Phone = SHARE TRACKING:USERCHAR11
+        Ben4Percent = FORMAT("##9.999%",SHARE TRACKING:USERRATE1)
+       END
+     END
+   END
+
+
+
+
+
+ CALL CUSTOMJAVASCRIPT
+ CALL EMAILSETUP
+END
+
+[
+ This procedure is to override data pased in the PERSONAL.SIGCARDADDJT.PRO,
+ specifically in the WRITEFORMDATA Procedure. Commands here must
+ be in the same format as in the WRITEFORMDATA Procedure.
+ This is used for customization since most times you can
+ (if possible) set the values in the CUSTOMSETUP procedure above.
+
+ Examples:
+   FIELDNAME = "MYFIELD" CHARACTERDATA = "Hello SymFormPDF" CALL WRITECHARACTER
+   FIELDNAME = "MYFIELD" MONEYDATA = $3.14 CALL WRITEMONEY
+]
+PROCEDURE CUSTOMWRITEFORMDATA
+END
+
+[
+ This procedure is to override data read back from the PDF in the
+ PERSONAL.SIGCARDADDJT.PRO, specifically in the READFORMDATA Procedure.
+ Commands here can be used to do some special reading of variables
+ most times this is not used.
+]
+PROCEDURE CUSTOMREADFORMDATA
+END
+
+[
+ This procedure is to send special JavaScript code to the PDF from.
+ The code specified here will be executed after the field data is
+ loaded into the fields. You can declare object variables that are
+ used in your form. For example, you could pass the entire Account
+ tree to be used in your javascript functions.
+
+ Example:
+   JSTEXT = "app.alert('Hello SymFormPDF JavaScript!');" CALL WRITEJS
+]
+PROCEDURE CUSTOMJAVASCRIPT
+END
+
+[
+ This procedure is to enable email and set up email for the PDF form.
+ If you set the EMAILFORMAT to HTML, you can use html markup in tne 
+ email message body.
+
+  EMAILENABLED    0 = FALSE
+                  1 = TRUE
+  EMAILFORMAT     0 = Plain Text
+                  1 = HTML
+  EMAILFROM       This is required if EMAILENABLED = TRUE
+                  Example: "noreply@YourCU.com"
+
+ Example:
+   EMAILTEXT = "This is the email body message" CALL WRITEEMAIL
+]
+PROCEDURE EMAILSETUP
+ EMAILENABLED = 0
+ EMAILFORMAT = 0
+ EMAILFROM = ""
+ EMAILSUBJECT = ""
+END
+
+#INCLUDE "SYMPDF.PRO"
+#INCLUDE "PERSONAL.SIGCARDADDJT.PRO"
