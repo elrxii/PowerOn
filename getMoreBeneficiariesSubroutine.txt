@@ -1,0 +1,168 @@
+[  ER.GETMOREBENEFS.SUBROUTINE
+
+   Created by
+   Ethan Roberts
+   on 11/01/2018
+
+   This subroutine is an exact duplicate of subroutine "ER.GETBENEFICIARY.SUBROUTINE".  The only difference in this code is the ENVPARAMS are loaded with
+   Names and their associated Share ID's from array slots 4-7 instead of 0-3 like "ER.GETBENEFICIARY.SUBROUTINE".  The reason for the creation of this subroutine
+   came about with symform "PERSONAL.SIGCARDADDJT" where I needed to load ADDITIONAL names/joints.
+ 
+]
+
+SUBROUTINE
+
+TARGET = ACCOUNT
+
+
+DEFINE
+ TRUE = 1
+ FALSE = 0
+
+ NAMEARY = CHARACTER ARRAY (19)
+ IDARY = CHARACTER ARRAY (19)
+ ARYSIZE = NUMBER
+ I = NUMBER
+
+ FOUNDINARY = NUMBER [ bool ]
+ INSERTED = NUMBER   [ bool ]
+ FOUND = NUMBER  [ bool ]
+END
+
+
+SETUP
+ ARYSIZE = 19
+END
+
+
+SELECT 
+ ACCOUNT:CLOSEDATE = '--/--/--'
+END
+
+
+PRINT TITLE = "Get Joints Report"
+
+  CALL CLEARNAMEARY
+  FOUND = FALSE [ RESET ]
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE TRACKING WITH SHARE TRACKING:TYPE = 50 AND SHARE TRACKING:EXPIREDATE = '--/--/--'    [ BENEFICIARY ]
+     DO
+     CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+     IF FOUNDINARY = FALSE THEN
+      DO
+       CALL INSERTNAME
+      END
+     END
+   END
+
+   CALL CLEARIDARY  
+   CALL ASSOCIATEIDSWITHNAMES
+
+   @ENVPARAMCHAR1=NAMEARY(4)
+   @ENVPARAMCHAR2=IDARY(4)
+   @ENVPARAMCHAR3=NAMEARY(5)                  
+   @ENVPARAMCHAR4=IDARY(5)
+   @ENVPARAMCHAR5=NAMEARY(6)
+   @ENVPARAMCHAR6=IDARY(6)
+   @ENVPARAMCHAR7=NAMEARY(7)                  
+   @ENVPARAMCHAR8=IDARY(7)
+
+
+
+END
+
+
+PROCEDURE CLEARNAMEARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   NAMEARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+PROCEDURE CLEARIDARY
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IDARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+
+
+PROCEDURE SCANARRAY
+ FOUNDINARY = FALSE
+ I = 0 
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   IF NAMEARY(I) = UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) THEN
+     FOUNDINARY = TRUE
+  END
+
+  I = 0
+ 
+END
+
+
+
+
+
+PROCEDURE INSERTNAME
+
+ INSERTED = FALSE
+ I = 0
+
+ WHILE (I <= ARYSIZE AND INSERTED = FALSE)
+  DO
+   IF NAMEARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
+    DO
+     NAMEARY(I) = UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3)
+     INSERTED = TRUE
+    END
+  I = I + 1
+  END
+
+  I = 0
+ 
+END
+
+
+
+PROCEDURE ASSOCIATEIDSWITHNAMES
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    FOR EACH SHARE TRACKING WITH SHARE TRACKING:TYPE = 50 AND SHARE TRACKING:EXPIREDATE = '--/--/--'    [ beneficiary ]
+     DO
+      FOR I = 0 TO ARYSIZE  
+       DO
+        IF UPPERCASE(SHARE TRACKING:USERCHAR1+" "+SHARE TRACKING:USERCHAR2+" "+SHARE TRACKING:USERCHAR3) = NAMEARY(I) THEN
+         DO
+          IF IDARY(I) = "" THEN  [ this "if" clause is only added for formatting output of ID-array ]
+           IDARY(I) = SHARE:ID
+          ELSE
+           IDARY(I) = IDARY(I)+", "+SHARE:ID
+         END
+       END 
+     END
+   END
+
+END
+
+
+
+
