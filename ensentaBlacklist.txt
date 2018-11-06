@@ -142,6 +142,8 @@ HEADER = ""
           DO
            CALL INSERTID   [ insert found share ID into array ]
 
+           PRINT "CHARGE-OFF"
+           PRINT ","
            PRINT PREFUSERNAME
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
@@ -191,6 +193,8 @@ HEADER = ""
           DO
            CALL INSERTID   [ insert found share ID into array ]
 
+           PRINT "Warning 65"
+           PRINT ","
            PRINT PREFUSERNAME
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
@@ -238,6 +242,8 @@ HEADER = ""
          DO
           CALL INSERTID   [ insert found share ID into array ]
 
+          PRINT "Closed Share"
+          PRINT ","
           PRINT PREFUSERNAME
           PRINT ","
           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
