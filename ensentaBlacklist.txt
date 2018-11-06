@@ -38,7 +38,7 @@ DEFINE
  FOUND = NUMBER  [ bool ]
 
 END
-
+ 
 SETUP
  ARYSIZE = 19
 END
