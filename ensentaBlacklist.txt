@@ -44,7 +44,9 @@ SETUP
 END
 
 SELECT
- ACCOUNT:CLOSEDATE = '--/--/--'
+ ACCOUNT:CLOSEDATE = '--/--/--' AND
+ NOT ANYWARNING(ACCOUNT,10) AND         [ Deceased     ]
+ NOT ANYWARNING(ACCOUNT,14)             [ Restrict All ]
 END
 
 
@@ -63,10 +65,9 @@ HEADER = ""
 
 
 
-
-  [************* GMAB *************]
-
-  [ ************ REMOVED FROM CODE ************* 
+[
+   ************* GMAB *************             
+   ************ BELOW PORTION COMMENTED OUT  ************* 
 
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
                       SHARE:TYPE = 51 AND  [ GMAB ]
@@ -111,7 +112,10 @@ HEADER = ""
       END
     END
 
+**********************************************************************
 ]
+
+
 
 
   [************* Charge-Off *************]
@@ -265,9 +269,11 @@ HEADER = ""
 
 
 
+[ 
 
- [************* Share Open Less than 30 Days *************]
+  THIS SECTION OF CODE HAS BEEN COMMENTED OUT 
 
+  ************* Share Open Less than 30 Days *************
   FOUND = FALSE [ RESET ]
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
                       SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,0,-30) AND  [ share open less than 30 days ]
@@ -275,47 +281,42 @@ HEADER = ""
                       SHARE:SHARECODE = 01)     [ DRAFT ]
 
    DO
-    FOUND = TRUE  
- 
-    IF FOUND = TRUE THEN 
+    IF PREFUSERNAME <> "" THEN
      DO
-      IF PREFUSERNAME <> "" THEN
+      CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+      IF FOUNDINARY = FALSE THEN
        DO
-        CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+        CALL INSERTID   [ insert found share ID into array ]
 
-        IF FOUNDINARY = FALSE THEN
+        PRINT PREFUSERNAME
+        PRINT ","
+        PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+        PRINT ","
+        PRINT SHARE:DESCRIPTION
+        PRINT ","
+
+       IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
          DO
-          CALL INSERTID   [ insert found share ID into array ]
-
-          PRINT PREFUSERNAME
+          PRINT "S"
           PRINT ","
-          PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+          PRINT "N"
+          NEWLINE
+         END
+        ELSE IF SHARE:SHARECODE = 01 THEN 
+         DO
+          PRINT "C"
           PRINT ","
-          PRINT SHARE:DESCRIPTION
-          PRINT ","
-
-          IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
-           DO
-            PRINT "S"
-            PRINT ","
-            PRINT "N"
-            NEWLINE
-           END
-          ELSE IF SHARE:SHARECODE = 01 THEN 
-           DO
-            PRINT "C"
-            PRINT ","
-            PRINT "N"
-            NEWLINE
-           END
+          PRINT "N"
+          NEWLINE
          END
        END
-     FOUND = FALSE  [ RESET ]
-     END
    END
+ END
+
+]
+
 END
-
-
 
 
 
