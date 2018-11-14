@@ -21,11 +21,12 @@ DEFINE
  ERRORTEXT = CHARACTER
  TRACKLOC = NUMBER
  LOOPCOUNTER = NUMBER
+ FOUNDCARD = NUMBER
 END
 
 SETUP
 
-
+ FOUNDCARD = FALSE
 
 
                               [ PRINT OPTIONS            ]
@@ -110,18 +111,9 @@ SETUP
 
 
 
+ [ if applicable card has been found, launch another symform ]
 
-[ The code below will check for applicable debit cards, and if found, run another symform ]
-
-  DC1 = "0"   [ default this checkbox to check "No" ]
-  DC2 = "0"   [ default this checkbox to check "No" ]
-  DC3 = "0"   [ default this checkbox to check "No" ]
-
-  CALL CHECKFORCARD
-
-  IF (DC1 = "1" OR
-      DC2 = "1" OR
-      DC3 = "1") THEN
+  IF FOUNDCARD = TRUE THEN
    DO
     INITSUBROUTINE(ERRORTEXT)
     EXECUTE("CONS.DEBITCARD.APP",ERRORTEXT)
@@ -263,19 +255,10 @@ PROCEDURE CUSTOMSETUP
   DC1 = "0"   [ default checkbox to unchecked ]
   DC2 = "0"
   DC3 = "0"
+  
+  CALL CHECKFORCARD
 
 
-  FOR EACH CARD 
-   DO
-    IF (CARD:TYPE = 15 OR 
-        CARD:TYPE = 16) AND
-        CARD:ISSUEDATE = '--/--/--' AND
-        CARD:EFFECTIVEDATE = '--/--/--' AND
-        CARD:ACTIVEDATE  = '--/--/--' THEN
-     DO
-      DC1 = "1"    [ check check-box ] 
-      END
-   END
     
  
  CALL EMAILSETUP
@@ -345,20 +328,19 @@ END
 
 
 PROCEDURE CHECKFORCARD
- FOR ACCOUNT ACCOUNT:NUMBER
-  DO
-   FOR EACH CARD 
-    DO
-     IF (CARD:TYPE = 15 OR 
-         CARD:TYPE = 16) AND
-         CARD:ISSUEDATE = '--/--/--' AND
-         CARD:EFFECTIVEDATE = '--/--/--' AND
-         CARD:ACTIVEDATE  = '--/--/--' THEN
-      DO
-       DC1 = "1"    [ this will check the check-box ] 
+  FOUNDCARD = FALSE
+  FOR EACH CARD 
+   DO
+    IF (CARD:TYPE = 15 OR 
+        CARD:TYPE = 16) AND
+        CARD:ISSUEDATE = '--/--/--' AND
+        CARD:EFFECTIVEDATE = '--/--/--' AND
+        CARD:ACTIVEDATE  = '--/--/--' THEN
+     DO
+      FOUNDCARD = TRUE
+      DC1 = "1"    [ check check-box ] 
       END
-    END
-  END
+   END
 END
 
 
