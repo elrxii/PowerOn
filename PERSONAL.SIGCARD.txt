@@ -21,11 +21,11 @@ DEFINE
  ERRORTEXT = CHARACTER
  TRACKLOC = NUMBER
  LOOPCOUNTER = NUMBER
- MYVALUE = CHARACTER
-
 END
 
 SETUP
+
+
 
 
                               [ PRINT OPTIONS            ]
@@ -55,10 +55,12 @@ SETUP
  FORMNAME = "PERSONAL.SIGCARD"
  CALL FORMSETUP
  
+ 
  [ NOTE: if you don't want to load previous saved forms 
    set the following LOADSAVEDFORMS flag to FALSE ]
  LOADSAVEDFORMS = TRUE
  SAVEDESCRIPTION = FORMNAME
+
 
  FOR ACCOUNT ACCOUNT:NUMBER
   DO
@@ -106,15 +108,20 @@ SETUP
 
 [ ************* END PERSONAL.SIGCARD CODE **************** ]
 
-[ Check for applicable card, and if found, run another symform ]
 
-  DC1 = "0"   [ default checkbox to unchecked ]
-  DC2 = "0"
-  DC3 = "0"
+
+
+[ The code below will check for applicable debit cards, and if found, run another symform ]
+
+  DC1 = "0"   [ default this checkbox to check "No" ]
+  DC2 = "0"   [ default this checkbox to check "No" ]
+  DC3 = "0"   [ default this checkbox to check "No" ]
 
   CALL CHECKFORCARD
 
-  IF DC1 = "1" THEN
+  IF (DC1 = "1" OR
+      DC2 = "1" OR
+      DC3 = "1") THEN
    DO
     INITSUBROUTINE(ERRORTEXT)
     EXECUTE("CONS.DEBITCARD.APP",ERRORTEXT)
@@ -256,7 +263,7 @@ PROCEDURE CUSTOMSETUP
   DC1 = "0"   [ default checkbox to unchecked ]
   DC2 = "0"
   DC3 = "0"
-  MYVALUE = "0"
+
 
   FOR EACH CARD 
    DO
@@ -348,8 +355,7 @@ PROCEDURE CHECKFORCARD
          CARD:EFFECTIVEDATE = '--/--/--' AND
          CARD:ACTIVEDATE  = '--/--/--' THEN
       DO
-       DC1 = "1"    [ check check-box ] 
-       MYVALUE = "1"
+       DC1 = "1"    [ this will check the check-box ] 
       END
     END
   END
