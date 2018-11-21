@@ -253,14 +253,11 @@ PROCEDURE CUSTOMSETUP
 
 
   DC1 = "0"   [ default checkbox to unchecked ]
-  DC2 = "0"
-  DC3 = "0"
+
   
   CALL CHECKFORCARD
 
 
-    
- 
  CALL EMAILSETUP
 END
 
