@@ -34,6 +34,11 @@ DEFINE
  INSERTED = NUMBER      [ bool ]
  FOUND = NUMBER         [ bool ]
 
+ LINE = CHARACTER
+ MYLINE = CHARACTER
+ CLONELINE = CHARACTER  [ used for temporary storage ]
+ TEMP = CHARACTER       [ used for temporary storage ]
+
 END
 
 SETUP
@@ -67,10 +72,10 @@ PRINT TITLE = "Ensenta RDC Report"
 
   FOR EACH SHARE WITH SHARE:CHARGEOFFDATE = '--/--/--' AND
                       SHARE:CLOSEDATE = '--/--/--' AND
-                      SHARE:OPENDATE <= SYSTEMDATE AND                    [ share has been open for at least 30 days           ]
-                      SHARE:OPENDATE >= DATEOFFSET(SYSTEMDATE,-2,0) AND   [ share has been open less than 2 Months (60 days)   ]
-                      (SHARE:SHARECODE = 00 OR                            [ share                                              ]
-                      SHARE:SHARECODE = 01)                               [ draft                                              ]
+                      SHARE:OPENDATE <= SYSTEMDATE AND                    [ share has been open for at least today                      ]
+                      SHARE:OPENDATE >= DATEOFFSET(SYSTEMDATE,-2,0) AND   [ share has been open less than or equal 2 Months (60 days)   ]
+                      (SHARE:SHARECODE = 00 OR                            [ share                                                       ]
+                      SHARE:SHARECODE = 01)                               [ draft                                                       ]
 
    DO
     IF PREFUSERNAME <> "" THEN
@@ -82,7 +87,13 @@ PRINT TITLE = "Ensenta RDC Report"
       PRINT ","
       PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
       PRINT ","
-      PRINT SHARE:DESCRIPTION
+      IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+       DO
+        CALL EXTRACTCOMMAS
+        PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+       END
+      ELSE
+       PRINT SHARE:DESCRIPTION
       PRINT ","
 
       IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -131,7 +142,13 @@ PRINT TITLE = "Ensenta RDC Report"
         PRINT ","
         PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
         PRINT ","
-        PRINT SHARE:DESCRIPTION
+        IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+         DO
+          CALL EXTRACTCOMMAS
+          PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+         END
+        ELSE
+         PRINT SHARE:DESCRIPTION
         PRINT ","
       
         IF SHARE:SHARECODE = 00 THEN                                        [ savings or share certificate (CD) ]
@@ -186,7 +203,13 @@ PRINT TITLE = "Ensenta RDC Report"
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
           IF SHARE:SHARECODE = 00 THEN                      [ savings ] 
            DO
@@ -234,6 +257,12 @@ PRINT TITLE = "Ensenta RDC Report"
             PRINT ","
             PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
             PRINT ","
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
             PRINT SHARE:DESCRIPTION
             PRINT ","
 
@@ -276,7 +305,13 @@ PRINT TITLE = "Ensenta RDC Report"
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
          
            IF SHARE:SHARECODE = 00 THEN              [ savings or share certificate (CD) ]
@@ -349,4 +384,30 @@ PROCEDURE INSERTID
 
   I = 0
  
+END
+
+
+
+
+[ 
+  This procedure removes all commas inside a Share Description and
+  replaces with space
+]
+PROCEDURE EXTRACTCOMMAS
+
+  LINE = SHARE:DESCRIPTION
+  MYLINE = SEGMENT(LINE,1,CHARACTERSEARCH(LINE,",")-1)
+  TEMP = SEGMENT(LINE,CHARACTERSEARCH(LINE,",")+1,LENGTH(LINE))
+  
+  MYLINE = MYLINE+" "+TEMP  [ adding whitespace where the comma is ]
+  
+  WHILE CHARACTERSEARCH(MYLINE,",") > 0
+   DO
+    CLONELINE = MYLINE
+    CLONELINE = SEGMENT(MYLINE,1,CHARACTERSEARCH(MYLINE,",")-1)
+    TEMP = SEGMENT(MYLINE,CHARACTERSEARCH(MYLINE,",")+1,LENGTH(MYLINE))
+
+    MYLINE = CLONELINE+" "+TEMP [ holds final string that contains spaces ]
+  END
+
 END
