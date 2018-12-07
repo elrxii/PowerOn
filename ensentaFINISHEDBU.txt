@@ -26,13 +26,18 @@ DEFINE
  TRUE = 1
  FALSE = 0
 
- IDARY = CHARACTER ARRAY (19)
+ IDARY = CHARACTER ARRAY(19)
  ARYSIZE = NUMBER
  I = NUMBER
 
- FOUNDINARY = NUMBER [ bool ]
- INSERTED = NUMBER   [ bool ]
- FOUND = NUMBER  [ bool ]
+ FOUNDINARY = NUMBER    [ bool ]
+ INSERTED = NUMBER      [ bool ]
+ FOUND = NUMBER         [ bool ]
+
+ LINE = CHARACTER
+ MYLINE = CHARACTER
+ CLONELINE = CHARACTER  [ used for temporary storage ]
+ TEMP = CHARACTER       [ used for temporary storage ]
 
 END
 
@@ -43,8 +48,7 @@ END
 
 SELECT
  ACCOUNT:CLOSEDATE = '--/--/--' AND
- SHARE:CHARGEOFFDATE = '--/--/--' AND 
- NOT ANY SHARE WITH (SHARE:TYPE=51)     [ GMAB ]
+ SHARE:CHARGEOFFDATE = '--/--/--'
 END
 
 
@@ -52,10 +56,10 @@ PRINT TITLE = "Ensenta RDC Report"
  [HEADER = ""]
 
   CALL CLEARARY
-  BAL = $0.00   [ RESET ]
-  FOUND = FALSE [ RESET ]
+  BAL = $0.00            [ RESET ]
+  FOUND = FALSE          [ RESET ]
 
-  PREFUSERNAME = ""   [ RESET ]
+  PREFUSERNAME = ""      [ RESET ]
   FOR EACH PREFERENCE 
    DO
     PREFUSERNAME = PREFERENCE:HBUSERNAME
@@ -68,11 +72,10 @@ PRINT TITLE = "Ensenta RDC Report"
 
   FOR EACH SHARE WITH SHARE:CHARGEOFFDATE = '--/--/--' AND
                       SHARE:CLOSEDATE = '--/--/--' AND
-                      SHARE:OPENDATE <= SYSTEMDATE-30 AND             [ share has been open for at least 30 days ]
-                      SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,-6,0) AND   [ share has been open less than 6 MONTHS ]
-                      SHARE:TYPE <> 51 AND
-                      (SHARE:SHARECODE = 00 OR  [ SHARE ]
-                      SHARE:SHARECODE = 01)     [ DRAFT ]
+                      SHARE:OPENDATE <= SYSTEMDATE AND                    [ share has been open for at least today                      ]
+                      SHARE:OPENDATE >= DATEOFFSET(SYSTEMDATE,-2,0) AND   [ share has been open less than or equal 2 Months (60 days)   ]
+                      (SHARE:SHARECODE = 00 OR                            [ share                                                       ]
+                      SHARE:SHARECODE = 01)                               [ draft                                                       ]
 
    DO
     IF PREFUSERNAME <> "" THEN
@@ -84,7 +87,13 @@ PRINT TITLE = "Ensenta RDC Report"
       PRINT ","
       PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
       PRINT ","
-      PRINT SHARE:DESCRIPTION
+      IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+       DO
+        CALL EXTRACTCOMMAS
+        PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+       END
+      ELSE
+       PRINT SHARE:DESCRIPTION
       PRINT ","
 
       IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -114,29 +123,35 @@ PRINT TITLE = "Ensenta RDC Report"
 
   FOR EACH SHARE WITH SHARE:CHARGEOFFDATE = '--/--/--' AND
                       SHARE:CLOSEDATE = '--/--/--' AND
-                      SHARE:OPENDATE <= DATEOFFSET(SYSTEMDATE,-6,0) AND   [ share has been open at least 6 MONTHS ]
+                      SHARE:OPENDATE <= DATEOFFSET(SYSTEMDATE,-6,0) AND     [ share has been open at least 6 MONTHS ]
                       SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,-24,0) AND     [ share has been open less than 2 years ]
-                      SHARE:TYPE <> 51 AND
-                      (SHARE:SHARECODE = 00 OR   [ SHARE ]
-                      SHARE:SHARECODE = 01)      [ DRAFT ]
+                      SHARE:TYPE <> 51 AND                                  [ GMAB (Give Me A Break)                ]
+                      (SHARE:SHARECODE = 00 OR                              [ share                                 ]
+                      SHARE:SHARECODE = 01)                                 [ draft                                 ]
 
    DO
     IF PREFUSERNAME <> "" THEN
      DO
-      CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+      CALL SCANARRAY               [ this procedure sets "FOUNDINARY" to true or false ]
 
       IF FOUNDINARY = FALSE THEN
        DO
-        CALL INSERTID   [ insert found share ID into array ]
+        CALL INSERTID              [ insert found share ID into array ]
   
         PRINT PREFUSERNAME
         PRINT ","
         PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
         PRINT ","
-        PRINT SHARE:DESCRIPTION
+        IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+         DO
+          CALL EXTRACTCOMMAS
+          PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+         END
+        ELSE
+         PRINT SHARE:DESCRIPTION
         PRINT ","
       
-        IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+        IF SHARE:SHARECODE = 00 THEN                                        [ savings or share certificate (CD) ]
          DO
           PRINT "S"
           PRINT ","
@@ -170,34 +185,40 @@ PRINT TITLE = "Ensenta RDC Report"
    IF BAL >= $25,000.00 THEN
     DO
      FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND 
-                         SHARE:TYPE <> 51 AND 
-                         (SHARE:SHARECODE = 00 OR    [ SHARE ]
-                         SHARE:SHARECODE = 01)       [ DRAFT ]
+                         SHARE:TYPE <> 51 AND               [ GMAB (Give Me A Break)                ]
+                         (SHARE:SHARECODE = 00 OR           [ share                                 ]
+                         SHARE:SHARECODE = 01)              [ draft                                 ]
       DO 
        FOUND = TRUE
 
        IF PREFUSERNAME <> "" THEN
         DO
-         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+         CALL SCANARRAY                                     [ this procedure sets "FOUNDINARY" to true or false ]
 
          IF FOUNDINARY = FALSE THEN
           DO
-           CALL INSERTID   [ insert found share ID into array ]
+           CALL INSERTID                                    [ insert found share ID into array ]
 
            PRINT PREFUSERNAME
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
-          IF SHARE:SHARECODE = 00 THEN     [ savings ] 
+          IF SHARE:SHARECODE = 00 THEN                      [ savings ] 
            DO
             PRINT "S"
             PRINT ","
             PRINT "TIER-3"
             NEWLINE
            END
-          ELSE IF SHARE:SHARECODE = 01 THEN    [ DRAFT ]
+          ELSE IF SHARE:SHARECODE = 01 THEN                 [ draft ]
            DO 
             PRINT "C"
             PRINT ","
@@ -220,15 +241,15 @@ PRINT TITLE = "Ensenta RDC Report"
     IF BAL >= $10,000.00 THEN
      DO
       FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND 
-                          SHARE:TYPE <> 51 AND
-                          (SHARE:SHARECODE = 00 OR     [ savings ] 
-                          SHARE:SHARECODE = 01)        [ DRAFT ] 
+                          SHARE:TYPE <> 51 AND                 [ GMAB (Give Me A Break)                ]
+                          (SHARE:SHARECODE = 00 OR             [ savings                               ] 
+                          SHARE:SHARECODE = 01)                [ draft                                 ] 
        DO
         FOUND = TRUE
 
         IF PREFUSERNAME <> "" THEN
          DO
-          CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+          CALL SCANARRAY                          [ this procedure sets "FOUNDINARY" to true or false ]
 
           IF FOUNDINARY = FALSE THEN
            DO
@@ -236,10 +257,16 @@ PRINT TITLE = "Ensenta RDC Report"
             PRINT ","
             PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
             PRINT ","
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
             PRINT SHARE:DESCRIPTION
             PRINT ","
 
-            IF SHARE:SHARECODE = 00 THEN         [ savings ] 
+            IF SHARE:SHARECODE = 00 THEN          [ savings ] 
              DO
               PRINT "S"
               PRINT ","
@@ -259,18 +286,18 @@ PRINT TITLE = "Ensenta RDC Report"
        END
      END
    
-   IF FOUND = FALSE THEN  [ agg share bal is not equal to or greater than $25,000.00, and agg loan bal is not greater than or equal to 10,000.00. ]
-                          [  Check to see if share has been open for at least 24 months ]
+   IF FOUND = FALSE THEN                   [ agg share bal is not equal to or greater than $25,000.00, and agg loan bal is not greater than or equal to 10,000.00. ]
+                                           [  Check to see if share has been open for at least 24 months ]
     DO
      FOR EACH SHARE WITH SHARE:OPENDATE <= DATEOFFSET(SYSTEMDATE,-24,0) AND
                          SHARE:CLOSEDATE = '--/--/--' AND
                          SHARE:TYPE <> 51 AND
-                        (SHARE:SHARECODE = 00 OR     [ Share ] 
-                         SHARE:SHARECODE = 01)       [ DRAFT ] 
+                        (SHARE:SHARECODE = 00 OR     [ share ] 
+                         SHARE:SHARECODE = 01)       [ draft ] 
       DO
        IF PREFUSERNAME <> "" THEN
         DO
-         CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+         CALL SCANARRAY                              [ this procedure sets "FOUNDINARY" to true or false ]
 
          IF FOUNDINARY = FALSE THEN
           DO
@@ -278,10 +305,16 @@ PRINT TITLE = "Ensenta RDC Report"
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
          
-           IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+           IF SHARE:SHARECODE = 00 THEN              [ savings or share certificate (CD) ]
             DO
              PRINT "S" 
              PRINT ","
@@ -341,7 +374,7 @@ PROCEDURE INSERTID
 
  WHILE (I <= ARYSIZE AND INSERTED = FALSE)
   DO
-   IF IDARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
+   IF IDARY(I) = "" THEN     [ found the next empty slot in array, insert ID ]
     DO
      IDARY(I) = SHARE:ID
      INSERTED = TRUE
@@ -351,4 +384,30 @@ PROCEDURE INSERTID
 
   I = 0
  
+END
+
+
+
+
+[ 
+  This procedure removes all commas inside a Share Description and
+  replaces with space
+]
+PROCEDURE EXTRACTCOMMAS
+
+  LINE = SHARE:DESCRIPTION
+  MYLINE = SEGMENT(LINE,1,CHARACTERSEARCH(LINE,",")-1)
+  TEMP = SEGMENT(LINE,CHARACTERSEARCH(LINE,",")+1,LENGTH(LINE))
+  
+  MYLINE = MYLINE+" "+TEMP  [ adding whitespace where the comma is ]
+  
+  WHILE CHARACTERSEARCH(MYLINE,",") > 0
+   DO
+    CLONELINE = MYLINE
+    CLONELINE = SEGMENT(MYLINE,1,CHARACTERSEARCH(MYLINE,",")-1)
+    TEMP = SEGMENT(MYLINE,CHARACTERSEARCH(MYLINE,",")+1,LENGTH(MYLINE))
+
+    MYLINE = CLONELINE+" "+TEMP [ holds final string that contains spaces ]
+  END
+
 END

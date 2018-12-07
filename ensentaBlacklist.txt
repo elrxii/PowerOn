@@ -37,6 +37,12 @@ DEFINE
  INSERTED = NUMBER   [ bool ]
  FOUND = NUMBER  [ bool ]
 
+
+ LINE = CHARACTER
+ MYLINE = CHARACTER
+ CLONELINE = CHARACTER  [ used for temporary storage ]
+ TEMP = CHARACTER       [ used for temporary storage ]
+
 END
 
 SETUP
@@ -44,12 +50,14 @@ SETUP
 END
 
 SELECT
- ACCOUNT:CLOSEDATE = '--/--/--'
+ ACCOUNT:CLOSEDATE = '--/--/--' AND
+ NOT ANYWARNING(ACCOUNT,10) AND         [ Deceased     ]
+ NOT ANYWARNING(ACCOUNT,14)             [ Restrict All ]
 END
 
 
 PRINT TITLE = "Ensenta BLACKLIST RDC Report"
-HEADER = ""
+
 
   CALL CLEARARY
   BAL = $0.00   [ RESET ]
@@ -63,8 +71,9 @@ HEADER = ""
 
 
 
-
-  [************* GMAB *************]
+[
+   ************* GMAB *************             
+   ************ BELOW PORTION COMMENTED OUT  ************* 
 
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
                       SHARE:TYPE = 51 AND  [ GMAB ]
@@ -88,7 +97,14 @@ HEADER = ""
          PRINT ","
          PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
          PRINT ","
-         PRINT SHARE:DESCRIPTION
+
+         IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+          DO
+           CALL EXTRACTCOMMAS
+           PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+          END
+         ELSE
+          PRINT SHARE:DESCRIPTION
          PRINT ","
 
          IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -108,6 +124,9 @@ HEADER = ""
         END
       END
     END
+
+**********************************************************************
+]
 
 
 
@@ -136,11 +155,21 @@ HEADER = ""
           DO
            CALL INSERTID   [ insert found share ID into array ]
 
+          [ 
+           PRINT "CHARGE-OFF"
+           PRINT ","
+          ]
            PRINT PREFUSERNAME
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
 
            IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -185,11 +214,21 @@ HEADER = ""
           DO
            CALL INSERTID   [ insert found share ID into array ]
 
+          [
+           PRINT "Warning 65"
+           PRINT ","
+          ]
            PRINT PREFUSERNAME
            PRINT ","
            PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
            PRINT ","
-           PRINT SHARE:DESCRIPTION
+           IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+            DO
+             CALL EXTRACTCOMMAS
+             PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+            END
+           ELSE
+            PRINT SHARE:DESCRIPTION
            PRINT ","
 
            IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -232,11 +271,21 @@ HEADER = ""
          DO
           CALL INSERTID   [ insert found share ID into array ]
 
+         [
+          PRINT "Closed Share"
+          PRINT ","
+         ]
           PRINT PREFUSERNAME
           PRINT ","
           PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
           PRINT ","
-          PRINT SHARE:DESCRIPTION
+          IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
+           DO
+            CALL EXTRACTCOMMAS
+            PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+           END
+          ELSE
+           PRINT SHARE:DESCRIPTION
           PRINT ","
 
           IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
@@ -263,9 +312,11 @@ HEADER = ""
 
 
 
+[ 
 
- [************* Share Open Less than 30 Days *************]
+  THIS SECTION OF CODE HAS BEEN COMMENTED OUT 
 
+  ************* Share Open Less than 30 Days *************
   FOUND = FALSE [ RESET ]
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--' AND
                       SHARE:OPENDATE > DATEOFFSET(SYSTEMDATE,0,-30) AND  [ share open less than 30 days ]
@@ -273,47 +324,48 @@ HEADER = ""
                       SHARE:SHARECODE = 01)     [ DRAFT ]
 
    DO
-    FOUND = TRUE  
- 
-    IF FOUND = TRUE THEN 
+    IF PREFUSERNAME <> "" THEN
      DO
-      IF PREFUSERNAME <> "" THEN
+      CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+
+      IF FOUNDINARY = FALSE THEN
        DO
-        CALL SCANARRAY  [ this procedure sets "FOUNDINARY" to true or false ]
+        CALL INSERTID   [ insert found share ID into array ]
 
-        IF FOUNDINARY = FALSE THEN
+        PRINT PREFUSERNAME
+        PRINT ","
+        PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+        PRINT ","
+        IF CHARACTERSEARCH(SHARE:DESCRIPTION,",") >0 THEN
          DO
-          CALL INSERTID   [ insert found share ID into array ]
+          CALL EXTRACTCOMMAS
+          PRINT MYLINE  [ this var is returned from extractcommas PROC ]
+         END
+        ELSE
+         PRINT SHARE:DESCRIPTION
+        PRINT ","
 
-          PRINT PREFUSERNAME
+       IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
+         DO
+          PRINT "S"
           PRINT ","
-          PRINT ACCOUNT:NUMBER+"-"+SHARE:ID
+          PRINT "N"
+          NEWLINE
+         END
+        ELSE IF SHARE:SHARECODE = 01 THEN 
+         DO
+          PRINT "C"
           PRINT ","
-          PRINT SHARE:DESCRIPTION
-          PRINT ","
-
-          IF SHARE:SHARECODE = 00 THEN     [ savings or share certificate (CD) ]
-           DO
-            PRINT "S"
-            PRINT ","
-            PRINT "N"
-            NEWLINE
-           END
-          ELSE IF SHARE:SHARECODE = 01 THEN 
-           DO
-            PRINT "C"
-            PRINT ","
-            PRINT "N"
-            NEWLINE
-           END
+          PRINT "N"
+          NEWLINE
          END
        END
-     FOUND = FALSE  [ RESET ]
-     END
    END
+ END
+
+]
+
 END
-
-
 
 
 
@@ -365,4 +417,33 @@ PROCEDURE INSERTID
 
   I = 0
  
+END
+
+
+
+
+
+
+
+[ 
+  This procedure removes all commas inside a Share Description and
+  replaces with space
+]
+PROCEDURE EXTRACTCOMMAS
+
+  LINE = SHARE:DESCRIPTION
+  MYLINE = SEGMENT(LINE,1,CHARACTERSEARCH(LINE,",")-1)
+  TEMP = SEGMENT(LINE,CHARACTERSEARCH(LINE,",")+1,LENGTH(LINE))
+  
+  MYLINE = MYLINE+" "+TEMP  [ adding whitespace where the comma is ]
+  
+  WHILE CHARACTERSEARCH(MYLINE,",") > 0
+   DO
+    CLONELINE = MYLINE
+    CLONELINE = SEGMENT(MYLINE,1,CHARACTERSEARCH(MYLINE,",")-1)
+    TEMP = SEGMENT(MYLINE,CHARACTERSEARCH(MYLINE,",")+1,LENGTH(MYLINE))
+
+    MYLINE = CLONELINE+" "+TEMP [ holds final string that contains spaces ]
+  END
+
 END

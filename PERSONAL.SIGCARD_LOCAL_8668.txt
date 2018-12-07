@@ -21,20 +21,11 @@ DEFINE
  ERRORTEXT = CHARACTER
  TRACKLOC = NUMBER
  LOOPCOUNTER = NUMBER
-<<<<<<< HEAD
  
-=======
- FOUNDCARD = NUMBER
->>>>>>> tempBranch
 END
 
 SETUP
 
-<<<<<<< HEAD
-=======
- FOUNDCARD = FALSE
-
->>>>>>> tempBranch
 
                               [ PRINT OPTIONS            ]
  PRINTERNAME   = ""           [ PRINTER NAME (OPTIONAL)  ]
@@ -63,20 +54,11 @@ SETUP
  FORMNAME = "PERSONAL.SIGCARD"
  CALL FORMSETUP
  
-<<<<<<< HEAD
-=======
- 
->>>>>>> tempBranch
  [ NOTE: if you don't want to load previous saved forms 
    set the following LOADSAVEDFORMS flag to FALSE ]
  LOADSAVEDFORMS = TRUE
  SAVEDESCRIPTION = FORMNAME
-<<<<<<< HEAD
  
-=======
-
-
->>>>>>> tempBranch
  FOR ACCOUNT ACCOUNT:NUMBER
   DO
    CALL DATASETUP
@@ -101,15 +83,8 @@ SETUP
         DO
          POPUPMESSAGE(2, "PERSONAL.SIGCARD FM ERROR: " + FORMFMPERROR)
          CLOSEFORM = FALSE
-<<<<<<< HEAD
         END
       END
-=======
-         POPUPMESSAGE(2,"DC: "+DC1)
-        END
-      END
-
->>>>>>> tempBranch
      CALL FINALIZEFORM
      IF (DOOPTICAL = TRUE AND OPTICALTYPE <> "") THEN
       DO
@@ -126,27 +101,8 @@ SETUP
 
 
 
-<<<<<<< HEAD
 END
 
-=======
-[ ************* END PERSONAL.SIGCARD CODE **************** ]
-
-
-
- [ if applicable card has been found, launch another symform ]
-
-  IF FOUNDCARD = TRUE THEN
-   DO
-    INITSUBROUTINE(ERRORTEXT)
-    EXECUTE("CONS.DEBITCARD.APP",ERRORTEXT)
-   END
-
-END
-
-
-
->>>>>>> tempBranch
 PRINT TITLE = "PDF FORM " + FORMNAME
  SUPPRESSNEWLINE
 END
@@ -275,16 +231,6 @@ PROCEDURE CUSTOMSETUP
    END
 
 
-<<<<<<< HEAD
-=======
-
-  DC1 = "0"   [ default checkbox to unchecked ]
-
-  
-  CALL CHECKFORCARD
-
-
->>>>>>> tempBranch
  CALL EMAILSETUP
 END
 
@@ -300,10 +246,6 @@ END
    FIELDNAME = "MYFIELD" MONEYDATA = $3.14 CALL WRITEMONEY
 ]
 PROCEDURE CUSTOMWRITEFORMDATA
-<<<<<<< HEAD
-=======
-
->>>>>>> tempBranch
 END
 
 [
@@ -313,10 +255,6 @@ END
  most times this is not used.
 ]
 PROCEDURE CUSTOMREADFORMDATA
-<<<<<<< HEAD
-=======
-
->>>>>>> tempBranch
 END
 
 [
@@ -354,29 +292,5 @@ PROCEDURE EMAILSETUP
  EMAILSUBJECT = ""
 END
 
-<<<<<<< HEAD
-=======
-
-
-
-PROCEDURE CHECKFORCARD
-  FOUNDCARD = FALSE
-  FOR EACH CARD 
-   DO
-    IF (CARD:TYPE = 15 OR 
-        CARD:TYPE = 16) AND
-        CARD:ISSUEDATE = '--/--/--' AND
-        CARD:EFFECTIVEDATE = '--/--/--' AND
-        CARD:ACTIVEDATE  = '--/--/--' THEN
-     DO
-      FOUNDCARD = TRUE
-      DC1 = "1"    [ check check-box ] 
-      END
-   END
-END
-
-
-
->>>>>>> tempBranch
 #INCLUDE "SYMPDF.PRO"
 #INCLUDE "PERSONAL.SIGCARD.PRO"
