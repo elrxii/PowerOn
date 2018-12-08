@@ -3,8 +3,6 @@
    Created by
    Ethan Roberts
    on 09/28/2018
-
-   Partial parts of this code was ripped from specfile: "CUTEK.FSCU.OFFSET.ADDUPDATE"
    
    This specfile will find all cards with a Pin Offset change equal to the SYSTEMDATE.
 
