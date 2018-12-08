@@ -6,7 +6,7 @@
 
 
 
-   This specfile retrives debit card numers/PIN numbers of those cards ordered as of today's date.  This specfile writes to letterfile-
+   This specfile retrieves debit card numers/PIN numbers of those cards ordered as of today's date.  This specfile writes to letterfile-
    FIRSTDATA.CARDNUMS.
 
    *NOTE:  This specfile is ran before the specfile ER.PIN.OFFSET.ADDUPDATE is ran.  This said specfile will create the PIN OFFSET file to upload-
