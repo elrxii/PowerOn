@@ -1,0 +1,185 @@
+[  ER.GET.FIRSTDATA.CARDS
+
+   Created by
+   Ethan Roberts
+   on 12/05/2018
+
+
+
+   This specfile retrives debit card numers/PIN numbers of those cards ordered as of today's date.  This specfile writes to letterfile-
+   FIRSTDATA.CARDNUMS.
+
+   *NOTE:  This specfile is ran before the specfile ER.PIN.OFFSET.ADDUPDATE is ran.  This said specfile will create the PIN OFFSET file to upload-
+           to FIRSTDATA.
+   
+]
+
+
+TARGET = ACCOUNT
+
+DEFINE
+ COUNT = NUMBER
+ CARDNUM = CHARACTER
+ NEWPINOFFSET = NUMBER
+
+ EXPORTFNAME=CHARACTER
+ EXPORTFNUMBER=NUMBER
+ EXPORTFERROR=CHARACTER
+ EXPORTCOUNT = NUMBER
+
+ TEMPCHAR=CHARACTER
+ FILLER=""
+ CR=CHARACTER(1)
+ LF=CHARACTER(1)
+ EOL=CHARACTER(2)
+
+ ARY = CHARACTER ARRAY (999)
+ ARYSIZE = NUMBER
+ I = NUMBER
+ J = NUMBER
+ L = NUMBER
+ SAVE = CHARACTER
+END
+
+SETUP
+ I = 0
+ J = 0
+ L = 0
+ COUNT = 0
+ CR=CTRLCHR(13)
+ LF=CTRLCHR(10)
+ EOL=CR+LF 
+ EXPORTFNAME="FIRSTDATA.CARDNUMS"
+
+
+ CALL CLEARARY
+ 
+ CALL DELETEFILE
+ CALL CREATEFILE
+ CALL OPENFILE
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE = '--/--/--'
+END
+
+
+PRINT TITLE = "FirstData Card Nums to "+EXPORTFNAME
+HEADER = ""
+
+  FOR EACH FMHISTORY WITH FMHISTORY:RECORDTYPE=19 AND                 [affects card record]
+                         (FMHISTORY:FMTYPE = 0 OR                     [was a creation]
+                          FMHISTORY:FMTYPE = 1) AND                   [was a revision ]
+                          FMHISTORY:FIELDNUMBER = 19 AND              [ Pin-Offset field reference ]
+                          FMHISTORY:POSTDATE=SYSTEMDATE
+   DO
+    NEWPINOFFSET = FMHISTORY:NEWNUMBER
+    FOR ACCOUNT ACCOUNT:NUMBER
+     DO
+      FOR EACH CARD WITH CARD:PINOFFSET = NEWPINOFFSET
+       DO
+        FILEWRITE(EXPORTFNUMBER,CARD:NUMBER,19,EXPORTFERROR)    
+        FILEWRITE(EXPORTFNUMBER,"0000",4,EXPORTFERROR)                              [Member Number]
+        FILEWRITE(EXPORTFNUMBER,FORMAT("9999",NEWPINOFFSET),4,EXPORTFERROR)         [PIN Offset]                      
+        FILEWRITE(EXPORTFNUMBER,EOL,EXPORTFERROR)
+        EXPORTCOUNT = EXPORTCOUNT+1
+        I = I + 1
+       END
+     END
+   END
+   UNTIL FMHISTORY:POSTDATE < SYSTEMDATE
+
+END
+
+
+
+
+
+PROCEDURE CLEARARY
+
+ I = 0
+
+ FOR I = 0 TO 999
+  DO
+   ARY(I) = ""
+  END
+
+  I = 0
+
+END
+
+
+
+
+PROCEDURE PRINTARY
+
+ I = 0
+
+ FOR I = 0 TO ARYSIZE
+  DO
+   PRINT ARY(I)
+   PRINT "     NUM: "
+   L = L + 1
+   PRINT L
+   NEWLINE
+  END
+
+  I = 0
+
+END
+
+
+
+
+
+PROCEDURE SORTPROCEDURE
+
+  FOR I = 0 TO ARYSIZE-1
+   DO
+    FOR J = 0 TO ARYSIZE-1
+     DO
+      IF ARY(J) > ARY(J+1) THEN
+       DO
+        SAVE = ARY(J+1)
+        ARY(J+1) = ARY(J)
+        ARY(J) = SAVE
+       END
+     END
+   END
+
+END
+
+
+
+
+
+
+PROCEDURE DELETEFILE
+ FILEDELETE("LETTER",EXPORTFNAME,EXPORTFERROR)
+END
+
+
+
+
+PROCEDURE CREATEFILE
+ FILECREATE("LETTER",EXPORTFNAME,EXPORTFERROR)
+ IF EXPORTFERROR<>"" THEN
+  DO
+   PRINT "Error creating Export Letter File "+EXPORTFNAME+": " + EXPORTFERROR
+   NEWLINE
+   TERMINATE
+  END
+END
+
+
+
+
+PROCEDURE OPENFILE
+ FILEOPEN("LETTER",EXPORTFNAME,"APPEND",EXPORTFNUMBER,EXPORTFERROR)
+ IF EXPORTFERROR<>"" THEN
+  DO
+   PRINT "Error opening Export Letter File "+EXPORTFNAME+": " + EXPORTFERROR
+   NEWLINE
+   TERMINATE
+  END
+END
