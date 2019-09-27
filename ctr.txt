@@ -4,14 +4,12 @@
  Auto generated procedures - CTR.CONDUCTOR.FORM.PRO
  PDF Form filename         - CTR.CONDUCTOR.FORM.pdf
 
- Author:   FSCU\ethan.roberts 
- Version:  SymPDFCreator 4.1.1.1
-
 
  Created by
  Ethan Roberts
  on 03/16/2019
 
+ This specfile was created to make the CTR process more efficient for the end-user.
 
 ]
 SUBROUTINE DEMAND WINDOWS
@@ -28,45 +26,29 @@ DEFINE
  #INCLUDE "FSCUPROCS.DEF"
 
  ACCTAMOUNT = MONEY
-
-
+ FOUNDDBA = NUMBER
+ FIRSTNAME = CHARACTER
+ MIDDLENAME = CHARACTER
+ LASTNAME = CHARACTER
+ TEMPLINE = CHARACTER
 END
 
 
 SETUP
-
  ACCTAMOUNT = $0.00
  I = 0
  ARYSIZE = 19
-                              [ PRINT OPTIONS            ]
+ FOUNDDBA = FALSE
  PRINTERNAME   = ""           [ PRINTER NAME (OPTIONAL)  ]
-
  PRINTCOPIES   = 1            [ 0 = ONE COPY (DEFAULT)   ]
-                              [ 1 = ONE COPY             ]
-                              [ n = n COPIES             ]
-
  PRINTMODE     = 0            [ 0 = FULL (DEFAULT)       ]
-                              [ 1 = AUTOMATIC            ]
-                              [ 2 = SILENT               ]
-
  PRINTANDTHEN  = 0            [ 0 = DO NOTHING (DEFAULT) ]
-                              [ 1 = SUBMIT FORM          ]
-                              [ 2 = CLOSE FORM           ]
-
  PRINTDUPLEX   = 0            [ 0 = DEFAULT (DEFAULT)    ]
-                              [ 1 = SIMPLEX              ]
-                              [ 2 = DUPLEX LONG EDGE     ]
-                              [ 3 = DUPLEX SHORT EDGE    ]
-
  PRINTCONTENTS = 0            [ 0 = DOC (DEFAULT)        ]
-                              [ 1 = DOC AND COMMENTS     ]
-                              [ 2 = FORM FIELDS ONLY     ]
+
 
  FORMNAME = "CTR.CONDUCTOR.FORM"
  CALL FORMSETUP
- 
- [ NOTE: if you don't want to load previous saved forms 
-   set the following LOADSAVEDFORMS flag to FALSE ]
  LOADSAVEDFORMS = TRUE
  SAVEDESCRIPTION = FORMNAME
 
@@ -115,68 +97,52 @@ PRINT TITLE = "PDF FORM " + FORMNAME
  SUPPRESSNEWLINE
 END
 
-[
- This procedure is to initialize custom variables defined on the
- PDF Form file. Any variables not recognized by the 'SymPDF Creator'
- will be declared as a custom CHARACTER variable with the field name.
 
- Examples:
-   MYFIELD = "MYVALUE"
-   MYFIELD = FORMAT("99/99/9999",SYSTEMDATE)
-]
+
+
 PROCEDURE CUSTOMSETUP
+
+ FOUNDDBA = FALSE
+ IF (ACCOUNT:TYPE = 3 OR         [ Indirect        ]
+     ACCOUNT:TYPE = 18 OR        [ BOPH Business   ]
+     ACCOUNT:TYPE = 63) THEN     [ BUSINESS        ]
+  DO
+   BN = NAME:LAST
+   EIN = FORMAT("99-9999999",VALUE(NAME:SSN))
+  END
+ ELSE IF (ACCOUNT:TYPE = 64 OR ACCOUNT:TYPE = 22) THEN    [ DBA OR BOPH DBA ]
+  DO 
+   FOR EACH NAME WITH NAME:TYPE = 24   [ DBA NAME ]
+    DO
+     BN = NAME:LONGNAME
+     EIN = FORMAT("99-99-99999",VALUE(NAME:SSN))
+    END
+  END
+
+
  CALL CUSTOMJAVASCRIPT
  CALL EMAILSETUP
 END
 
-[
- This procedure is to override data pased in the CTR.CONDUCTOR.FORM.PRO,
- specifically in the WRITEFORMDATA Procedure. Commands here must
- be in the same format as in the WRITEFORMDATA Procedure.
- This is used for customization since most times you can
- (if possible) set the values in the CUSTOMSETUP procedure above.
 
- Examples:
-   FIELDNAME = "MYFIELD" CHARACTERDATA = "Hello SymFormPDF" CALL WRITECHARACTER
-   FIELDNAME = "MYFIELD" MONEYDATA = $3.14 CALL WRITEMONEY
-]
+
 PROCEDURE CUSTOMWRITEFORMDATA
-
-
 END
 
-[
- This procedure is to override data read back from the PDF in the
- CTR.CONDUCTOR.FORM.PRO, specifically in the READFORMDATA Procedure.
- Commands here can be used to do some special reading of variables
- most times this is not used.
-]
+
 PROCEDURE CUSTOMREADFORMDATA
- 
- 
-
- 
 END
 
-[
- This procedure is to send special JavaScript code to the PDF from.
- The code specified here will be executed after the field data is
- loaded into the fields. You can declare object variables that are
- used in your form. For example, you could pass the entire Account
- tree to be used in your javascript functions.
 
- Example:
-   JSTEXT = "app.alert('Hello SymFormPDF JavaScript!');" CALL WRITEJS
-]
+
 PROCEDURE CUSTOMJAVASCRIPT
 
-
-[                                                                         ]
-[ The code below is used for aggregating deposits and withdrawals within  ]
-[ a day.  This portion is not being used, and the teller is calculating   ]
-[ these totals on their own.                                              ] 
+[                                                                     
+ The code below is used for aggregating deposits and withdrawals within  
+ a day.  This portion is not being used, and the teller is calculating   
+ these totals on their own.                                              
+]
 [
-[                                                                         ]
   FOR EACH SHARE WITH SHARE:CLOSEDATE='--/--/--'
    DO
     FOR EACH SHARE TRANSACTION WITH SHARE TRANSACTION:POSTDATE = SYSTEMDATE AND
@@ -193,11 +159,8 @@ PROCEDURE CUSTOMJAVASCRIPT
 ]
 
 
-
-
-
     CALL CLEARNAMEARY
-    FOR EACH NAME WITH NAME:EXPIRATIONDATE = '--/--/--'
+    FOR EACH NAME WITH NAME:EXPIRATIONDATE = '--/--/--' AND NAME:TYPE <> 24  [ exclude dba names ]
      DO
       CALL SCANNAMEARRAY
       IF FOUNDINARY = FALSE THEN
@@ -216,172 +179,131 @@ PROCEDURE CUSTOMJAVASCRIPT
   
      I = 0
 
-
-    JSTEXT = "this.getField('ANUMBER').readonly = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('TRANAMOUNT').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('SYSTEMDATE').readonly = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('SYSUSERNAME').readonly = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('SYSUSERNUMBER').readonly = true; "
-    CALL WRITEJS
-
+    JSTEXT = "this.getField('ANUMBER').readonly = true; "         CALL WRITEJS
+    JSTEXT = "this.getField('TRANAMOUNT').required = true; "      CALL WRITEJS
+    JSTEXT = "this.getField('SYSTEMDATE').readonly = true; "      CALL WRITEJS
+    JSTEXT = "this.getField('SYSUSERNAME').readonly = true; "     CALL WRITEJS
+    JSTEXT = "this.getField('SYSUSERNUMBER').readonly = true; "   CALL WRITEJS
 
 
 [ Making fields required based on if account is Business account or regular account ]
 
-
-  IF (ACCOUNT:TYPE = 63 OR    [ if business account ]
-     ACCOUNT:TYPE = 64) THEN
+  IF (ACCOUNT:TYPE = 3 OR        [ Indirect        ]
+     ACCOUNT:TYPE = 18 OR        [ BOPH Business   ]
+     ACCOUNT:TYPE = 22 OR        [ BOPH DBA        ]
+     ACCOUNT:TYPE = 63 OR        [ DBA             ]
+     ACCOUNT:TYPE = 64) THEN     [ BUSINESS        ]
    DO
-    JSTEXT = "app.alert('Please fill out Business Information section only.'); "
-    CALL WRITEJS
-    JSTEXT = "this.getField('BN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('EIN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ToB').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('JOB').required = true; "
-    CALL WRITEJS
-
-    JSTEXT = "this.getField('FN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('MI').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('LN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('SSN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('DOB').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('FID').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ISSUED').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('PA').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('CITY').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ST').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ZIPCODE').required = true; "
-    CALL WRITEJS
+    JSTEXT = "this.getField('BN').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('EIN').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('ToB').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('JOB').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('FN').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('MI').required = false; "       CALL WRITEJS
+    JSTEXT = "this.getField('LN').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('SSN').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('DOB').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('FID').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('ISSUED').required = true; "    CALL WRITEJS
+    JSTEXT = "this.getField('PA').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('CITY').required = true; "      CALL WRITEJS
+    JSTEXT = "this.getField('ST').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('ZIPCODE').required = true; "   CALL WRITEJS
    END
   ELSE
    DO
-    JSTEXT = "app.alert('Please fill out Conductor Information section only.'); "
-    CALL WRITEJS
-    JSTEXT = "this.getField('FN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('MI').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('LN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('JOB').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('SSN').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('DOB').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('FID').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ISSUED').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('PA').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('CITY').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ST').required = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ZIPCODE').required = true; "
-    CALL WRITEJS
-
-
-    JSTEXT = "this.getField('BN').readonly = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('EIN').readonly = true; "
-    CALL WRITEJS
-    JSTEXT = "this.getField('ToB').readonly = true; "
-    CALL WRITEJS
+    JSTEXT = "this.getField('FN').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('MI').required = false; "       CALL WRITEJS
+    JSTEXT = "this.getField('LN').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('JOB').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('SSN').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('DOB').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('FID').required = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('ISSUED').required = true; "    CALL WRITEJS
+    JSTEXT = "this.getField('PA').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('CITY').required = true; "      CALL WRITEJS
+    JSTEXT = "this.getField('ST').required = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('ZIPCODE').required = true; "   CALL WRITEJS
+    JSTEXT = "this.getField('BN').readonly = true; "        CALL WRITEJS
+    JSTEXT = "this.getField('EIN').readonly = true; "       CALL WRITEJS
+    JSTEXT = "this.getField('ToB').readonly = true; "       CALL WRITEJS
    END
 
 
 
   [ create and begin object array ]
 
-    JSTEXT = "aryName = "
-    CALL WRITEJS
-    JSTEXT = "[ "
-    CALL WRITEJS
-    JSTEXT =  "{ toString: function() {return 'Select One'}, "
-    CALL WRITEJS
-    JSTEXT = "      MI: '',  " 
-    CALL WRITEJS  
-    JSTEXT = "      LN: '',  " 
-    CALL WRITEJS  
-    JSTEXT = "      JOB: '',  " 
-    CALL WRITEJS  
-    JSTEXT = "      SSN: '',  " 
-    CALL WRITEJS   
-    JSTEXT = "      DOB: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      FID: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      ISSUED: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      PA: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      CITY: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      ST: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "      ZIPCODE: '',  " 
-    CALL WRITEJS 
-    JSTEXT = "}, "
-    CALL WRITEJS
- 
+    JSTEXT = "aryName = [{ toString: function() {return 'Select One'},  "   CALL WRITEJS
+    JSTEXT = "      MI: '',  "                                              CALL WRITEJS
+    JSTEXT = "      LN: '',  "                                              CALL WRITEJS
+    JSTEXT = "      JOB: '',  "                                             CALL WRITEJS
+    JSTEXT = "      SSN: '',  "                                             CALL WRITEJS
+    JSTEXT = "      DOB: '',  "                                             CALL WRITEJS
+    JSTEXT = "      FID: '',  "                                             CALL WRITEJS
+    JSTEXT = "      ISSUED: '',  "                                          CALL WRITEJS
+    JSTEXT = "      PA: '',  "                                              CALL WRITEJS
+    JSTEXT = "      CITY: '',  "                                            CALL WRITEJS
+    JSTEXT = "      ST: '',  "                                              CALL WRITEJS
+    JSTEXT = "      ZIPCODE: '', }, "                                       CALL WRITEJS
+
+[
+****************************************************************************************
+***    Ethan Roberts                                                                 ***
+***    09/13/2019                                                                    ***
+***                                                                                  ***
+***                                                                                  ***
+***    The below IF clause is excluding various ACCOUNT:TYPEs because                ***
+***    the Primary name (Name Prime) does not have a NAME:FIRST, NAME:MIDDLE,        ***
+***    or NAME:LAST field for these account types, therefore you will not need to    ***
+***    get the primary name, only those linked to each share.                        ***
+***                                                                                  ***                                                       
+***                                                                                  ***
+****************************************************************************************
+]
 
     I = 0
-    FOR EACH NAME WITH NAME:EXPIRATIONDATE = '--/--/--'
+    IF ACCOUNT:TYPE <> 3 AND      [ indirect dealer   ] 
+       ACCOUNT:TYPE <> 8 AND      [ non-profit        ]
+       ACCOUNT:TYPE <> 9 AND      [ trust             ]
+       ACCOUNT:TYPE <> 10 AND     [ estate            ]
+       ACCOUNT:TYPE <> 18 AND     [ BOPH Business     ]
+       ACCOUNT:TYPE <> 19 AND     [ BOPH non-profit   ]
+       ACCOUNT:TYPE <> 20 AND     [ BOPH Trust        ]
+       ACCOUNT:TYPE <> 22 AND     [ BOPH DBA          ]
+       ACCOUNT:TYPE <> 23 AND     [ BOPH estate       ]
+       ACCOUNT:TYPE <> 63 THEN    [ Business          ]     
+      [ ACCOUNT:TYPE <> 64 THEN     DBA               ] 
      DO
-      FOR I = 0 TO ARYSIZE
+      FOR EACH NAME WITH NAME:EXPIRATIONDATE = '--/--/--'
        DO
-        IF NAME:FIRST = NAMEARY(I) THEN
+        FOR I = 0 TO ARYSIZE
          DO
-          JSTEXT =  "{ toString: function() {return '"+NAME:FIRST+"'}, "
-          CALL WRITEJS
-          JSTEXT = "      MI: '"+NAME:MIDDLE+"',  " 
-          CALL WRITEJS  
-          JSTEXT = "      LN: '"+NAME:LAST+"',  " 
-          CALL WRITEJS  
-          JSTEXT = "      JOB: '"+NAME:OCCUPATION+"',  " 
-          CALL WRITEJS  
-          JSTEXT = "      SSN: '"+NAME:SSN+"',  " 
-          CALL WRITEJS   
-          JSTEXT = "      DOB: '"+FORMAT("99/99/9999",NAME:BIRTHDATE)+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      FID: 'DL  "+NAME:IDENTIDNUMBER:1+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      ISSUED: '"+NAME:IDENTIDDESCRIPTION:1+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      PA: '"+NAME:STREET+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      CITY: '"+NAME:CITY+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      ST: '"+NAME:STATE+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "      ZIPCODE: '"+SEGMENT(NAME:ZIPCODE,1,5)+"',  " 
-          CALL WRITEJS 
-          JSTEXT = "}, "
-          CALL WRITEJS
-          NAMEARY(I) = ""  [ this element has been used, set to null ]
+          TEMPLINE = SEGMENT(NAMEARY(I),CHARACTERSEARCH(NAMEARY(I)," ")+1,LENGTH(NAMEARY(I))) 
+          FIRSTNAME =  SEGMENT(NAMEARY(I),1,CHARACTERSEARCH(NAMEARY(I)," ")-1)
+          MIDDLENAME = SEGMENT(TEMPLINE,1,CHARACTERSEARCH(TEMPLINE," ")-1)
+          TEMPLINE = SEGMENT(TEMPLINE,CHARACTERSEARCH(TEMPLINE," ")+1,LENGTH(TEMPLINE)) 
+          LASTNAME = SEGMENT(TEMPLINE,1,LENGTH(TEMPLINE))
+
+          IF NAME:LONGNAME = NAMEARY(I) AND NAME:TYPE <> 24 THEN    [ excluding DBA names even though none should exist in this array ]
+           DO
+            JSTEXT =  "{ toString: function() {return '"+FIRSTNAME+"'}, "           CALL WRITEJS
+            JSTEXT = "      MI: '"+MIDDLENAME+"',  "                                CALL WRITEJS
+            JSTEXT = "      LN: '"+LASTNAME+"',  "                                  CALL WRITEJS
+            JSTEXT = "      JOB: '"+NAME:OCCUPATION+"',  "                          CALL WRITEJS
+            JSTEXT = "      SSN: '"+NAME:SSN+"',  "                                 CALL WRITEJS
+            JSTEXT = "      DOB: '"+FORMAT("99/99/9999",NAME:BIRTHDATE)+"',  "      CALL WRITEJS
+            JSTEXT = "      FID: 'DL  "+NAME:IDENTIDNUMBER:1+"',  "                 CALL WRITEJS
+            JSTEXT = "      ISSUED: '"+NAME:IDENTIDDESCRIPTION:1+"',  "             CALL WRITEJS
+            JSTEXT = "      PA: '"+NAME:STREET+"',  "                               CALL WRITEJS
+            JSTEXT = "      CITY: '"+NAME:CITY+"',  "                               CALL WRITEJS
+            JSTEXT = "      ST: '"+NAME:STATE+"',  "                                CALL WRITEJS
+            JSTEXT = "      ZIPCODE: '"+SEGMENT(NAME:ZIPCODE,1,5)+"', }, "          CALL WRITEJS
+
+            NAMEARY(I) = "" [ this element has been used, set to null ]
+           END
          END
        END
      END
-      
       
      FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
       DO
@@ -389,34 +311,26 @@ PROCEDURE CUSTOMJAVASCRIPT
         DO
          FOR I = 0 TO ARYSIZE
           DO
-           IF SHARE NAME:FIRST = NAMEARY(I) THEN
+           TEMPLINE = SEGMENT(NAMEARY(I),CHARACTERSEARCH(NAMEARY(I)," ")+1,LENGTH(NAMEARY(I))) 
+           FIRSTNAME =  SEGMENT(NAMEARY(I),1,CHARACTERSEARCH(NAMEARY(I)," ")-1)
+           MIDDLENAME = SEGMENT(TEMPLINE,1,CHARACTERSEARCH(TEMPLINE," ")-1)
+           TEMPLINE = SEGMENT(TEMPLINE,CHARACTERSEARCH(TEMPLINE," ")+1,LENGTH(TEMPLINE)) 
+           LASTNAME = SEGMENT(TEMPLINE,1,LENGTH(TEMPLINE))
+           IF SHARE NAME:LONGNAME = NAMEARY(I) THEN
             DO
-             JSTEXT =  "{ toString: function() {return '"+SHARE NAME:FIRST+"'}, "
-             CALL WRITEJS
-             JSTEXT = "      MI: '"+SHARE NAME:MIDDLE+"',  " 
-             CALL WRITEJS  
-             JSTEXT = "      LN: '"+SHARE NAME:LAST+"',  " 
-             CALL WRITEJS  
-             JSTEXT = "      JOB: '"+SHARE NAME:OCCUPATION+"',  " 
-             CALL WRITEJS  
-             JSTEXT = "      SSN: '"+SHARE NAME:SSN+"',  " 
-             CALL WRITEJS   
-             JSTEXT = "      DOB: '"+FORMAT("99/99/9999",SHARE NAME:BIRTHDATE)+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      FID: 'DL  "+SHARE NAME:IDENTIDNUMBER:1+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      ISSUED: '"+SHARE NAME:IDENTIDDESCRIPTION:1+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      PA: '"+SHARE NAME:STREET+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      CITY: '"+SHARE NAME:CITY+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      ST: '"+SHARE NAME:STATE+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "      ZIPCODE: '"+SEGMENT(SHARE NAME:ZIPCODE,1,5)+"',  " 
-             CALL WRITEJS 
-             JSTEXT = "}, "
-             CALL WRITEJS
+             JSTEXT =  "{ toString: function() {return '"+FIRSTNAME+"'}, "                  CALL WRITEJS
+             JSTEXT = "      MI: '"+MIDDLENAME+"',  "                                       CALL WRITEJS
+             JSTEXT = "      LN: '"+LASTNAME+"',  "                                         CALL WRITEJS
+             JSTEXT = "      JOB: '"+SHARE NAME:OCCUPATION+"',  "                           CALL WRITEJS  
+             JSTEXT = "      SSN: '"+SHARE NAME:SSN+"',  "                                  CALL WRITEJS 
+             JSTEXT = "      DOB: '"+FORMAT("99/99/9999",SHARE NAME:BIRTHDATE)+"',  "       CALL WRITEJS
+             JSTEXT = "      FID: 'DL  "+SHARE NAME:IDENTIDNUMBER:1+"',  "                  CALL WRITEJS
+             JSTEXT = "      ISSUED: '"+SHARE NAME:IDENTIDDESCRIPTION:1+"',  "              CALL WRITEJS
+             JSTEXT = "      PA: '"+SHARE NAME:STREET+"',  "                                CALL WRITEJS
+             JSTEXT = "      CITY: '"+SHARE NAME:CITY+"',  "                                CALL WRITEJS
+             JSTEXT = "      ST: '"+SHARE NAME:STATE+"',  "                                 CALL WRITEJS
+             JSTEXT = "      ZIPCODE: '"+SEGMENT(SHARE NAME:ZIPCODE,1,5)+"',  },"           CALL WRITEJS
+
              NAMEARY(I) = ""  [ this element has been used, set to null ]
             END     
           END
@@ -424,74 +338,30 @@ PROCEDURE CUSTOMJAVASCRIPT
       END
 
 
-      JSTEXT =  "{ toString: function() {return ' '}, "
-      CALL WRITEJS
-      JSTEXT = "      MI: '',  " 
-      CALL WRITEJS  
-      JSTEXT = "      LN: '',  " 
-      CALL WRITEJS  
-      JSTEXT = "      JOB: '',  " 
-      CALL WRITEJS  
-      JSTEXT = "      SSN: '',  " 
-      CALL WRITEJS   
-      JSTEXT = "      DOB: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      FID: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      ISSUED: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      PA: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      CITY: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      ST: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "      ZIPCODE: '',  " 
-      CALL WRITEJS 
-      JSTEXT = "}, "
-      CALL WRITEJS
-      JSTEXT = " ]; "
-      CALL WRITEJS
+      JSTEXT =  "{ toString: function() {return 'Non-member'}, "   CALL WRITEJS
+      JSTEXT = "      MI: '',  "                                   CALL WRITEJS 
+      JSTEXT = "      LN: '',  "                                   CALL WRITEJS 
+      JSTEXT = "      JOB: '',  "                                  CALL WRITEJS
+      JSTEXT = "      SSN: '',  "                                  CALL WRITEJS
+      JSTEXT = "      DOB: '',  "                                  CALL WRITEJS
+      JSTEXT = "      FID: '',  "                                  CALL WRITEJS
+      JSTEXT = "      ISSUED: '',  "                               CALL WRITEJS
+      JSTEXT = "      PA: '',  "                                   CALL WRITEJS
+      JSTEXT = "      CITY: '',  "                                 CALL WRITEJS 
+      JSTEXT = "      ST: '',  "                                   CALL WRITEJS
+      JSTEXT = "      ZIPCODE: '',  "                              CALL WRITEJS
+      JSTEXT = "}]; "                                              CALL WRITEJS
 
- [ end of object array ]
+      [ end of object array ]
 
 
-
-
-
-
-
-
-  JSTEXT = "var varName = "
-  CALL WRITEJS
-  JSTEXT = "  this.getField('FN'); "
-  CALL WRITEJS
-
-  JSTEXT = " varName.clearItems(); "
-  CALL WRITEJS
-
-
-  JSTEXT = " varName.setItems(aryName); "
-  CALL WRITEJS
-
-
+      JSTEXT = "var varName = "                                    CALL WRITEJS
+      JSTEXT = "  this.getField('FN'); "                           CALL WRITEJS
+      JSTEXT = " varName.clearItems(); "                           CALL WRITEJS
+      JSTEXT = " varName.setItems(aryName); "                      CALL WRITEJS
 END
 
-[
- This procedure is to enable email and set up email for the PDF form.
- If you set the EMAILFORMAT to HTML, you can use html markup in tne 
- email message body.
 
-  EMAILENABLED    0 = FALSE
-                  1 = TRUE
-  EMAILFORMAT     0 = Plain Text
-                  1 = HTML
-  EMAILFROM       This is required if EMAILENABLED = TRUE
-                  Example: "noreply@YourCU.com"
-
- Example:
-   EMAILTEXT = "This is the email body message" CALL WRITEEMAIL
-]
 PROCEDURE EMAILSETUP
  EMAILENABLED = 0
  EMAILFORMAT = 0
@@ -503,14 +373,11 @@ END
 
 PROCEDURE CLEARNAMEARY
  I = 0
-
  FOR I = 0 TO ARYSIZE
   DO
    NAMEARY(I) = ""
   END
-
   I = 0
-
 END
 
 
@@ -518,13 +385,11 @@ END
 PROCEDURE SCANNAMEARRAY
  FOUNDINARY = FALSE
  I = 0 
-
  FOR I = 0 TO ARYSIZE
   DO
-   IF NAMEARY(I) = NAME:FIRST THEN
+   IF NAMEARY(I) = NAME:LONGNAME THEN
      FOUNDINARY = TRUE
   END
-
   I = 0
 
 END
@@ -535,13 +400,11 @@ END
 PROCEDURE SCANSHARENAMEARRAY
  FOUNDINARY = FALSE
  I = 0 
-
  FOR I = 0 TO ARYSIZE
   DO
-   IF NAMEARY(I) = SHARE NAME:FIRST THEN
+   IF NAMEARY(I) = SHARE NAME:LONGNAME THEN
      FOUNDINARY = TRUE
   END
-
   I = 0
 
 END
@@ -550,22 +413,19 @@ END
 
 
 PROCEDURE INSERTNAME
-
  INSERTED = FALSE
  I = 0
-
  WHILE (I <= ARYSIZE AND INSERTED = FALSE)
   DO
    IF NAMEARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
     DO
-     NAMEARY(I) = NAME:FIRST
+     NAMEARY(I) = NAME:LONGNAME
      INSERTED = TRUE
     END
   I = I + 1
   END
 
   I = 0
-
 END
 
 
@@ -574,22 +434,19 @@ END
 
 
 PROCEDURE INSERTSHARENAME
-
  INSERTED = FALSE
  I = 0
-
  WHILE (I <= ARYSIZE AND INSERTED = FALSE)
   DO
    IF NAMEARY(I) = "" THEN  [ found the next empty slot in array, insert ID ]
     DO
-     NAMEARY(I) = SHARE NAME:FIRST
+     NAMEARY(I) = SHARE NAME:LONGNAME
      INSERTED = TRUE
     END
   I = I + 1
   END
 
   I = 0
-
 END
 
 
