@@ -355,8 +355,7 @@ PROCEDURE CUSTOMJAVASCRIPT
       [ end of object array ]
 
 
-      JSTEXT = "var varName = "                                    CALL WRITEJS
-      JSTEXT = "  this.getField('FN'); "                           CALL WRITEJS
+      JSTEXT = "var varName = this.getField('FN');"                CALL WRITEJS
       JSTEXT = " varName.clearItems(); "                           CALL WRITEJS
       JSTEXT = " varName.setItems(aryName); "                      CALL WRITEJS
 END
