@@ -44,8 +44,10 @@ HTMLVIEWLINE("   table { font-family: arial, sans-serif;  font-size: 14px;  marg
 HTMLVIEWLINE("   .wrapper { width: 1050px; margin-left: auto; margin-right: auto; border-radius: 5px;}")
 HTMLVIEWLINE("   div.sticky { position: fixed; position: sticky; bottom: 0px; left: 0px; top: 0px; }")
 HTMLVIEWLINE("   span { font-weight: bold;  }")
-HTMLVIEWLINE("   .container { text-align: center; margin-left: 550px; }")
-HTMLVIEWLINE("   tr:nth-child(even) { background: #E8E8E8;  }")
+HTMLVIEWLINE("   .container { text-align: center; margin-left: 450px; }")
+HTMLVIEWLINE("   th { background: #6c9dc6;  }")
+HTMLVIEWLINE("   tr:nth-child(even) { background: #F2F2F2;  }")
+HTMLVIEWLINE("   .tran:hover { background: #ddd;  }")
 HTMLVIEWLINE(" </style>")
 
 
@@ -80,7 +82,7 @@ HTMLVIEWLINE("       <div class='col-sm'>  ")
   FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
    DO
     ROWNUMBER = 0
-HTMLVIEWLINE("         <table align='center' id='"+SHARE:ID+"' class='table table-hover'  style='display: none;'>  ")  
+HTMLVIEWLINE("         <table align='center' id='"+SHARE:ID+"' class='table'  style='display: none;'>  ")  
 HTMLVIEWLINE("         <thead>  ")
 HTMLVIEWLINE("         <tr>  ")
 HTMLVIEWLINE("           <th>#</th> ")
@@ -90,13 +92,14 @@ HTMLVIEWLINE("           <th>Share ID</th>")
 HTMLVIEWLINE("           <th>Transaction</th>")
 HTMLVIEWLINE("           <th>Transaction Amount</th>")
 HTMLVIEWLINE("           <th> New Balance</th>")
+HTMLVIEWLINE("           <th> Transaction Comment</th>")
 HTMLVIEWLINE("         </tr>  ")
 HTMLVIEWLINE("         </thead>  ")
    
    FOR EACH SHARE TRANSACTION WITH SHARE TRANSACTION:ACTIONCODE <> "C"   [ exclude comment transactions ]
     DO
      ROWNUMBER = ROWNUMBER + 1
-     HTMLVIEWLINE("   <tr>  ")
+     HTMLVIEWLINE("   <tr class='tran'>  ")
      HTMLVIEWLINE("   <td><span>  "+FORMAT("###9",ROWNUMBER)+"  </span></td>")
     
     IF SHARE TRANSACTION:POSTTIME >= 1300 AND SHARE TRANSACTION:POSTTIME <= 2359 THEN   [ 1pm to 11:59pm ]
@@ -131,9 +134,10 @@ HTMLVIEWLINE("         </thead>  ")
 
     HTMLVIEWLINE("   <td>  "+FORMAT("#,###,##9.99",SHARE TRANSACTION:TRANAMOUNT)+"  </td>")
     HTMLVIEWLINE("   <td>  "+FORMAT("#,###,##9.99",SHARE TRANSACTION:NEWBALANCE)+"  </td>")
+    HTMLVIEWLINE("   <td>  "+SHARE TRANSACTION:STMTDESC:1+"  </td>")
     HTMLVIEWLINE("   </tr>  ")
    END
-   UNTIL SHARE TRANSACTION:POSTDATE < DATEOFFSET(SYSTEMDATE,-1*12,0)  [ get transactions from two years ago ]
+   UNTIL SHARE TRANSACTION:POSTDATE < (SYSTEMDATE - 60)
  END
 
 HTMLVIEWLINE("   </table>  ")
