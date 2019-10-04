@@ -1,0 +1,180 @@
+[ ER.TRANSACTIONHISTORY.HTML
+
+  Created by 
+  Ethan Roberts 
+  on 10/02/2019
+  
+  This specfile will show a member's transaction history for each share based on which share the user selects.  
+  
+  NOTE: This specfile only displays transactions within the past 365 days for each share.
+  
+]
+
+WINDOWS
+TARGET=ACCOUNT
+
+DEFINE
+ HTMLFLINE = CHARACTER
+ FILENAME = CHARACTER
+ FILEERROR = CHARACTER
+ FILETEXT = CHARACTER
+ FILENUMBER = NUMBER
+ CODE = NUMBER
+ ROWNUMBER = NUMBER
+ POSTTIME = NUMBER
+END
+
+
+SETUP
+ FILENAME = "er.js"
+HTMLVIEWOPEN(0)
+HTMLVIEWLINE("<!DOCTYPE html>")
+HTMLVIEWLINE("<html>")
+HTMLVIEWLINE("<head>")
+HTMLVIEWLINE("<meta charset='iso-8859-1'>")
+HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge' />")
+HTMLVIEWLINE("<head><script src='jquery-3.4.0.min.js'></script></head> ")
+HTMLVIEWLINE("<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css' ")
+HTMLVIEWLINE("integrity='sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T' crossorigin='anonymous'> ")
+HTMLVIEWLINE("<link href='https://unpkg.com/aos@2.3.1/dist/aos.css' rel='stylesheet'> ")
+
+HTMLVIEWLINE(" <style>")
+HTMLVIEWLINE("   .text-alignleft-wrapper{ text-align: left;}") 
+HTMLVIEWLINE("   table { font-family: arial, sans-serif;  font-size: 14px;  margin-top: 75px;}")
+HTMLVIEWLINE("   .wrapper { width: 1050px; margin-left: auto; margin-right: auto; border-radius: 5px;}")
+HTMLVIEWLINE("   div.sticky { position: fixed; position: sticky; bottom: 0px; left: 0px; top: 0px; }")
+HTMLVIEWLINE("   span { font-weight: bold;  }")
+HTMLVIEWLINE("   .container { text-align: center; margin-left: 550px; }")
+HTMLVIEWLINE("   tr:nth-child(even) { background: #E8E8E8;  }")
+HTMLVIEWLINE(" </style>")
+
+
+HTMLVIEWLINE("</head>")
+HTMLVIEWLINE("  <body>")
+HTMLVIEWLINE("    <div class='container'>         ")
+HTMLVIEWLINE("      <div class='text-alignleft-wrapper'>  ")
+HTMLVIEWLINE("        <div class='sticky'>  ")
+HTMLVIEWLINE("         <select id='myselect'  class='custom-select'>     ")
+HTMLVIEWLINE("            <option value='500'>Choose a share</option>  ")
+
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    HTMLVIEWLINE("        <option id='shareid' value='"+SHARE:ID+"'  onclick='showIt()'> "+SHARE:DESCRIPTION+" "+"         "+"    "+SHARE:ID+"</option>  ")
+   END
+
+HTMLVIEWLINE("         </select>")
+HTMLVIEWLINE("        </div>  ")
+HTMLVIEWLINE("      </div>  ")
+HTMLVIEWLINE("    </div>  ")
+HTMLVIEWLINE("   <p id='display' style='display:none;'>   </p>  ")
+HTMLVIEWLINE("   </div>  ")
+
+
+
+CALL GETJS
+HTMLVIEWLINE("   <div class='container'>  ")
+HTMLVIEWLINE("     <div class='row'>  ")
+HTMLVIEWLINE("       <div class='col-sm'>  ")
+
+  FOR EACH SHARE WITH SHARE:CLOSEDATE = '--/--/--'
+   DO
+    ROWNUMBER = 0
+HTMLVIEWLINE("         <table align='center' id='"+SHARE:ID+"' class='table table-hover'  style='display: none;'>  ")  
+HTMLVIEWLINE("         <thead>  ")
+HTMLVIEWLINE("         <tr>  ")
+HTMLVIEWLINE("           <th>#</th> ")
+HTMLVIEWLINE("           <th>Post Time</th> ")
+HTMLVIEWLINE("           <th>Post Date</th> ")
+HTMLVIEWLINE("           <th>Share ID</th>")
+HTMLVIEWLINE("           <th>Transaction</th>")
+HTMLVIEWLINE("           <th>Transaction Amount</th>")
+HTMLVIEWLINE("           <th> New Balance</th>")
+HTMLVIEWLINE("         </tr>  ")
+HTMLVIEWLINE("         </thead>  ")
+   
+   FOR EACH SHARE TRANSACTION WITH SHARE TRANSACTION:ACTIONCODE <> "C"   [ exclude comment transactions ]
+    DO
+     ROWNUMBER = ROWNUMBER + 1
+     HTMLVIEWLINE("   <tr>  ")
+     HTMLVIEWLINE("   <td><span>  "+FORMAT("###9",ROWNUMBER)+"  </span></td>")
+    
+    IF SHARE TRANSACTION:POSTTIME >= 1300 AND SHARE TRANSACTION:POSTTIME <= 2359 THEN   [ 1pm to 11:59pm ]
+     DO
+      POSTTIME = SHARE TRANSACTION:POSTTIME - 1200
+      HTMLVIEWLINE("   <td>  "+FORMAT("##:##",POSTTIME)+"p  </td>")
+     END
+    ELSE IF SHARE TRANSACTION:POSTTIME >= 1200 AND SHARE TRANSACTION:POSTTIME <= 1259 THEN  [ 12:00pm to 12:59pm ]
+     DO
+      HTMLVIEWLINE("   <td>  "+FORMAT("##:##",SHARE TRANSACTION:POSTTIME)+"p  </td>")
+     END
+    ELSE IF SHARE TRANSACTION:POSTTIME >= 0000 AND SHARE TRANSACTION:POSTTIME <= 0059 THEN  [ 12:00am to 12:59am ]
+     DO
+      HTMLVIEWLINE("   <td>  "+FORMAT("12:##",SHARE TRANSACTION:POSTTIME)+"a  </td>")
+     END
+   ELSE    [ it's AM ]
+     DO
+      HTMLVIEWLINE("   <td>  "+FORMAT("##:##",SHARE TRANSACTION:POSTTIME)+"a  </td>")
+     END
+
+     HTMLVIEWLINE("   <td>  "+FORMAT("99/99/99",SHARE TRANSACTION:POSTDATE)+"  </td>")
+     HTMLVIEWLINE("   <td>  "+SHARE:ID+"  </td>")
+ 
+    IF SHARE TRANSACTION:ACTIONCODE = "D" THEN 
+     DO
+      HTMLVIEWLINE("   <td style='color: #41A317;'>Deposit</td>")
+     END
+    ELSE IF SHARE TRANSACTION:ACTIONCODE = "W" THEN
+     DO
+      HTMLVIEWLINE("   <td style='color: #FF1A1A;'>Withdrawal</td>")
+     END 
+
+    HTMLVIEWLINE("   <td>  "+FORMAT("#,###,##9.99",SHARE TRANSACTION:TRANAMOUNT)+"  </td>")
+    HTMLVIEWLINE("   <td>  "+FORMAT("#,###,##9.99",SHARE TRANSACTION:NEWBALANCE)+"  </td>")
+    HTMLVIEWLINE("   </tr>  ")
+   END
+   UNTIL SHARE TRANSACTION:POSTDATE < DATEOFFSET(SYSTEMDATE,-1*12,0)  [ get transactions from two years ago ]
+ END
+
+HTMLVIEWLINE("   </table>  ")
+HTMLVIEWLINE("   </div>  ")
+HTMLVIEWLINE("   </div>  ")
+HTMLVIEWLINE("   </div>  ")
+
+HTMLVIEWLINE("<script src='https://code.jquery.com/jquery-3.3.1.slim.min.js'  ")
+HTMLVIEWLINE(" integrity='sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo' crossorigin='anonymous'></script> ")
+HTMLVIEWLINE("<script src='https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js' ") 
+HTMLVIEWLINE(" integrity='sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1' crossorigin='anonymous'></script> ")
+HTMLVIEWLINE("<script src='https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js' ")
+HTMLVIEWLINE("integrity='sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM' crossorigin='anonymous'></script> ")
+HTMLVIEWLINE("<script src='https://unpkg.com/aos@2.3.1/dist/aos.js'></script> ")
+
+
+ HTMLVIEWLINE("    </body>")
+ HTMLVIEWLINE("</html>")
+ HTMLVIEWDISPLAY
+
+END
+
+PRINT TITLE="Transaction History"
+  SUPPRESSNEWLINE
+END
+
+
+
+[ This procedure reads a javascript file ]
+PROCEDURE GETJS
+ FILEOPEN("REPGEN", FILENAME, "READ", FILENUMBER, FILEERROR)
+ IF (FILEERROR <> "") THEN
+  DO
+   POPUPMESSAGE(0, "Failed to open " + FILENAME)
+   TERMINATE
+  END 
+  WHILE FILEERROR = ""
+   DO
+    FILEREADLINE(FILENUMBER, FILETEXT, FILEERROR)
+    HTMLVIEWLINE(FILETEXT)
+   END 
+
+   FILECLOSE(FILENUMBER, FILEERROR)
+END
